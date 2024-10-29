@@ -62,8 +62,8 @@ void anyHit(inout TraceData rayData : SV_RayPayload, BuiltInTriangleIntersection
     GeometryInstanceID instanceID = getGeometryInstanceID();
     VertexData v = getVertexData(instanceID, PrimitiveIndex(), attribs);
     uint materialID = gScene.getMaterialID(instanceID);
-    if (gScene.materials.alphaTest(v, materialID, 0.f))
-        IgnoreHit();
+    //if (gScene.materials.alphaTest(v, materialID, 0.f))
+    //    IgnoreHit();
 }
 
 [shader("closesthit")]
@@ -110,14 +110,10 @@ void rayGen()
         bool isDiffuse =  bsdfSample.isLobe(LobeType::Diffuse);
         if(isDiffuse) break;
 
-        if (!isTransmission)
-        {
-            // reflection
-            ray.origin = sd.computeNewRayOrigin(true);
-            ray.dir = bsdfSample.wo;
-            ray.tMin = 0.0;
-        }
-        else break;
+        // reflection or refraction 
+        ray.origin = sd.computeNewRayOrigin(!isTransmission);
+        ray.dir = bsdfSample.wo;
+        ray.tMin = 0.0;
     }
 
     gVBuffer[pixel] = data.packedHitInfo;
