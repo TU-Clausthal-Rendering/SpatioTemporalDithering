@@ -55,6 +55,8 @@ MultiResTransparencyTracing::MultiResTransparencyTracing(ref<Device> pDevice, co
 
     DefineList defines;
     mpPullProgram = ComputePass::create(mpDevice, kProgramPullFile, "main", defines);
+    auto var = mpPullProgram->getRootVar();
+    var["gSampler"] = mpLinearSampler;
 }
 
 Properties MultiResTransparencyTracing::getProperties() const

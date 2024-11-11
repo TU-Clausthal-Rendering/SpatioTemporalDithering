@@ -286,12 +286,27 @@ void rayGen()
         float4 prevT = gRayTPrev.GatherRed(gSampler, uv);
         float4 prevVis = gColorPrev.GatherAlpha(gSampler, uv);
 
-        // choose one of the 4 pixels
-        tMin = prevT.w;
-        prevVisibility = prevVis.w;
-        frameDim = gFullResolution;
-        pixel = pixel * gResMultiplier;
+        const uint2 offsets[4] = { uint2(0, 1), uint2(1, 1), uint2(1, 0), uint2(0, 0) };
 
+        // choose one of the 4 pixels
+        tMin = prevT[0];
+        prevVisibility = prevVis[0];
+        pixel = id * gResMultiplier + offsets[0];
+
+        [unroll]for (uint i = 0; i < 4; ++i)
+        {
+            //if (prevVis[i] > prevVisibility)
+            if(prevT[i] < tMin)
+            //if(i == (id.x % 2u) + 2u * (id.y % 2u))
+            //if(i == 3)
+            {
+                tMin = prevT[i];
+                prevVisibility = prevVis[i];
+                pixel = id * gResMultiplier + offsets[i];
+            }
+        }
+
+        frameDim = gFullResolution;
         if (prevVisibility <= 0.01)
         {
             // finish
