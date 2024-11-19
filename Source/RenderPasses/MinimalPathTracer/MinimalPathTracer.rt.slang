@@ -69,6 +69,9 @@ cbuffer CB
     uint        gPRNGDimension;     // First available PRNG dimension.
 }
 
+// use coverage instead of alpha test
+#define USE_COVERAGE 1
+
 // Inputs
 Texture2D<PackedHitInfo> gVBuffer;
 Texture2D<float4> gViewW; // Optional
@@ -92,7 +95,7 @@ static const float kRayTMax = FLT_MAX;
 */
 struct ShadowRayData
 {
-    bool visible;
+    float visible;
 };
 
 /** Payload for scatter ray (up to 72B).
@@ -196,7 +199,7 @@ float3 getPrimaryRayDir(uint2 launchIndex, uint2 launchDim, const Camera camera)
     \param[in] distance Distance to the light source.
     \return True if light is visible, false otherwise.
 */
-bool traceShadowRay(float3 origin, float3 dir, float distance)
+float traceShadowRay(float3 origin, float3 dir, float distance)
 {
     RayDesc ray;
     ray.Origin = origin;
@@ -205,8 +208,8 @@ bool traceShadowRay(float3 origin, float3 dir, float distance)
     ray.TMax = distance;
 
     ShadowRayData rayData;
-    rayData.visible = false;    // Set to true by miss shader if ray is not terminated before
-    TraceRay(gScene.rtAccel, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xff /* instanceInclusionMask */, 1 /* hitIdx */, rayTypeCount, 1 /* missIdx */, ray, rayData);
+    rayData.visible = 1.0;    // accumulated visibility
+    TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_NON_OPAQUE, 0xff /* instanceInclusionMask */, 1 /* hitIdx */, rayTypeCount, 1 /* missIdx */, ray, rayData);
 
     return rayData.visible;
 }
@@ -258,11 +261,11 @@ float3 evalDirectAnalytic(const ShadingData sd, const IMaterialInstance mi, inou
     const float3 origin = computeRayOrigin(sd.posW, dot(sd.faceN, ls.dir) >= 0.f ? sd.faceN : -sd.faceN);
 
     // Test visibility by tracing a shadow ray.
-    bool V = traceShadowRay(origin, ls.dir, ls.distance);
-    if (!V) return float3(0.f);
+    float V = traceShadowRay(origin, ls.dir, ls.distance);
+    if (V < 0.01) return float3(0.0);
 
     // Evaluate contribution.
-    return mi.eval(sd, ls.dir, sg) * ls.Li * invPdf;
+    return V * mi.eval(sd, ls.dir, sg) * ls.Li * invPdf;
 }
 
 /** Generate a new scatter ray or terminate.
@@ -275,6 +278,14 @@ float3 evalDirectAnalytic(const ShadingData sd, const IMaterialInstance mi, inou
 */
 bool generateScatterRay(const ShadingData sd, const IMaterialInstance mi, bool isCurveHit, float3 rayOrigin, inout ScatterRayData rayData)
 {
+    if (sd.opacity < 1.0)
+    {
+        // always trace though
+        rayData.thp *= (1.0 - sd.opacity);
+        rayData.origin = sd.computeNewRayOrigin(false);
+        return any(rayData.thp > 0.0f);
+    }
+
     // Sample material.
     BSDFSample bsdfSample;
     if (mi.sample(sd, rayData.sg, bsdfSample, kUseImportanceSampling))
@@ -409,15 +420,16 @@ float3 tracePath(const uint2 pixel, const uint2 frameDim)
         if (kComputeDirect)
         {
             // Always output directly emitted light, independent of whether emissive materials are treated as light sources or not.
-            outColor += mi.getProperties(sd).emission;
+            outColor += sd.opacity * mi.getProperties(sd).emission;
 
             // Add contribution of direct light from analytic lights.
             // Light probe and mesh lights are handled by the scatter ray hit/miss shaders.
-            outColor += kUseAnalyticLights ? evalDirectAnalytic(sd, mi, sg) : float3(0.f);
+            outColor += sd.opacity * (kUseAnalyticLights ? evalDirectAnalytic(sd, mi, sg) : float3(0.f));
         }
 
         // Prepare ray payload.
         ScatterRayData rayData = ScatterRayData(sg);
+        rayData.direction = primaryRayDir;
 
         // Generate scatter ray.
         if (!generateScatterRay(sd, mi, isCurveHit, rayOrigin, rayData)) rayData.terminated = true;
@@ -463,8 +475,7 @@ void scatterMiss(inout ScatterRayData rayData)
 [shader("miss")]
 void shadowMiss(inout ShadowRayData rayData)
 {
-    // The miss shader is executed if the ray misses all geometry. Mark as visible.
-    rayData.visible = true;
+    
 }
 
 //
@@ -478,7 +489,14 @@ void scatterTriangleMeshAnyHit(inout ScatterRayData rayData, BuiltInTriangleInte
     GeometryInstanceID instanceID = getGeometryInstanceID();
     VertexData v = getVertexData(instanceID, PrimitiveIndex(), attribs);
     const uint materialID = gScene.getMaterialID(instanceID);
-    if (gScene.materials.alphaTest(v, materialID, 0.f)) IgnoreHit();
+    ExplicitLodTextureSampler lod = { 0.0 };
+    if (USE_COVERAGE)
+    {
+        let material = gScene.materials.getMaterial(materialID);
+        float alpha = material.evalOpacity(gScene.materials, v, lod);
+        if (alpha <= 0.01f) IgnoreHit();
+    }
+    else if (gScene.materials.alphaTest(v, materialID, 0.f)) IgnoreHit();
 }
 
 [shader("closesthit")]
@@ -498,7 +516,16 @@ void shadowTriangleMeshAnyHit(inout ShadowRayData rayData, BuiltInTriangleInters
     GeometryInstanceID instanceID = getGeometryInstanceID();
     VertexData v = getVertexData(instanceID, PrimitiveIndex(), attribs);
     const uint materialID = gScene.getMaterialID(instanceID);
-    if (gScene.materials.alphaTest(v, materialID, 0.f)) IgnoreHit();
+    ExplicitLodTextureSampler lod = { 0.0 };
+    if (USE_COVERAGE)
+    {
+        let material = gScene.materials.getMaterial(materialID);
+        float alpha = material.evalOpacity(gScene.materials, v, lod);
+        rayData.visible *= (1.0 - alpha);
+        if (rayData.visible > 0.01f) IgnoreHit();
+        else AcceptHitAndEndSearch();
+    }
+    else if (gScene.materials.alphaTest(v, materialID, 0.f)) IgnoreHit();
 }
 
 //
