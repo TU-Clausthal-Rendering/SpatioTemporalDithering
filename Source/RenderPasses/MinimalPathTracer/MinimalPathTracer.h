@@ -82,4 +82,6 @@ private:
         ref<RtBindingTable> pBindingTable;
         ref<RtProgramVars> pVars;
     } mTracer;
+
+    bool mUseRussianRoulettePath = true;
 };

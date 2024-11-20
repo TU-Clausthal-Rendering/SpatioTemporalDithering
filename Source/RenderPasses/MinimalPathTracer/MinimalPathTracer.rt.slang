@@ -92,6 +92,7 @@ static const float3 kDefaultBackgroundColor = float3(0, 0, 0);
 static const float kRayTMax = FLT_MAX;
 
 static const float kMinThroughput = 0.01;
+static const bool kUseRussianRoulettePath = USE_RUSSIAN_ROULETTE_PATH;
 
 /** Payload for shadow ray.
 */
@@ -288,7 +289,14 @@ bool generateScatterRay(const ShadingData sd, const IMaterialInstance mi, bool i
     if (sd.opacity < 1.0)
     {
         // always trace though
-        rayData.thp *= saturate(1.0 - sd.opacity);
+        if(kUseRussianRoulettePath)
+        {
+            float rng = sampleNext1D(rayData.sg);
+            if(rng > saturate(1.0 - sd.opacity))
+               rayData.thp = 0.0; // failed roulette
+        }
+        else rayData.thp *= saturate(1.0 - sd.opacity);
+
         rayData.origin = sd.computeNewRayOrigin(false);
         return any(rayData.thp > kMinThroughput);
     }
@@ -303,7 +311,14 @@ bool generateScatterRay(const ShadingData sd, const IMaterialInstance mi, bool i
             rayData.origin = sd.computeNewRayOrigin(false);
         }
         rayData.direction = bsdfSample.wo;
-        rayData.thp *= bsdfSample.weight;
+        if(kUseRussianRoulettePath)
+        {
+            float rng = sampleNext1D(rayData.sg);
+            if(rng > dot(bsdfSample.weight, 0.33))
+               rayData.thp = 0.0; // failed roulette
+        }
+        else rayData.thp *= bsdfSample.weight;
+
         return any(rayData.thp > kMinThroughput);
     }
 
