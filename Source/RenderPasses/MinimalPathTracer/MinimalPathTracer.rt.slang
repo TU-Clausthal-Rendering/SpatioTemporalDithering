@@ -93,11 +93,14 @@ static const float kRayTMax = FLT_MAX;
 
 static const float kMinThroughput = 0.01;
 static const bool kUseRussianRoulettePath = USE_RUSSIAN_ROULETTE_PATH;
+static const bool kUseRussianRouletteShadow = USE_RUSSIAN_ROULETTE_PATH;
+static const bool kUseRussianRouletteOpacity = false;
 
 /** Payload for shadow ray.
 */
 struct ShadowRayData
 {
+    SampleGenerator sg;
     float visible;
 };
 
@@ -202,7 +205,7 @@ float3 getPrimaryRayDir(uint2 launchIndex, uint2 launchDim, const Camera camera)
     \param[in] distance Distance to the light source.
     \return True if light is visible, false otherwise.
 */
-float traceShadowRay(float3 origin, float3 dir, float distance)
+float traceShadowRay(float3 origin, float3 dir, float distance, inout SampleGenerator sg)
 {
     RayDesc ray;
     ray.Origin = origin;
@@ -211,9 +214,11 @@ float traceShadowRay(float3 origin, float3 dir, float distance)
     ray.TMax = distance;
 
     ShadowRayData rayData;
+    rayData.sg = sg;
     rayData.visible = 1.0;    // accumulated visibility
     TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_NON_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xff /* instanceInclusionMask */, 1 /* hitIdx */, rayTypeCount, 1 /* missIdx */, ray, rayData);
-
+    
+    sg = rayData.sg;
     return rayData.visible;
 }
 
@@ -264,7 +269,7 @@ float3 evalDirectAnalytic(const ShadingData sd, const IMaterialInstance mi, inou
     const float3 origin = computeRayOrigin(sd.posW, dot(sd.faceN, ls.dir) >= 0.f ? sd.faceN : -sd.faceN);
 
     // Test visibility by tracing a shadow ray.
-    float V = traceShadowRay(origin, ls.dir, ls.distance);
+    float V = traceShadowRay(origin, ls.dir, ls.distance, sg);
     if (V < 0.01) return float3(0.0);
 
     // flip light direction for evaluation when opacity object is hit from the other side
@@ -343,6 +348,7 @@ void handleHit(const HitInfo hit, inout ScatterRayData rayData)
 
     // Load shading data.
     ShadingData sd = loadShadingData(hit, rayData.origin, rayData.direction, lod);
+    if(kUseRussianRouletteOpacity) sd.opacity = 1.0;
 
     // Create material instance.
     let mi = gScene.materials.getMaterialInstance(sd, lod);
@@ -520,7 +526,13 @@ void scatterTriangleMeshAnyHit(inout ScatterRayData rayData, BuiltInTriangleInte
     {
         let material = gScene.materials.getMaterial(materialID);
         float alpha = material.evalOpacity(gScene.materials, v, lod);
-        if (alpha <= 0.01f) IgnoreHit();
+        if(kUseRussianRouletteOpacity)
+        {
+            float rng = sampleNext1D(rayData.sg);
+            if (rng > alpha) IgnoreHit();
+        }
+
+        if (alpha <= 0.01f) IgnoreHit(); 
     }
     else if (gScene.materials.alphaTest(v, materialID, 0.f)) IgnoreHit();
 }
@@ -547,6 +559,18 @@ void shadowTriangleMeshAnyHit(inout ShadowRayData rayData, BuiltInTriangleInters
     {
         let material = gScene.materials.getMaterial(materialID);
         float alpha = material.evalOpacity(gScene.materials, v, lod);
+
+        if(kUseRussianRouletteShadow)
+        {
+            float rng = sampleNext1D(rayData.sg);
+            if (rng > alpha) IgnoreHit();
+            else
+            {
+                rayData.visible = 0.0;
+                AcceptHitAndEndSearch();
+            }
+        }
+
         rayData.visible *= (1.0 - alpha);
         if (rayData.visible > 0.01f) IgnoreHit();
         else AcceptHitAndEndSearch();
