@@ -91,6 +91,8 @@ static const bool kUseEnvBackground = USE_ENV_BACKGROUND;
 static const float3 kDefaultBackgroundColor = float3(0, 0, 0);
 static const float kRayTMax = FLT_MAX;
 
+static const float kMinThroughput = 0.01;
+
 /** Payload for shadow ray.
 */
 struct ShadowRayData
@@ -209,7 +211,7 @@ float traceShadowRay(float3 origin, float3 dir, float distance)
 
     ShadowRayData rayData;
     rayData.visible = 1.0;    // accumulated visibility
-    TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_NON_OPAQUE, 0xff /* instanceInclusionMask */, 1 /* hitIdx */, rayTypeCount, 1 /* missIdx */, ray, rayData);
+    TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_NON_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xff /* instanceInclusionMask */, 1 /* hitIdx */, rayTypeCount, 1 /* missIdx */, ray, rayData);
 
     return rayData.visible;
 }
@@ -252,7 +254,7 @@ float3 evalDirectAnalytic(const ShadingData sd, const IMaterialInstance mi, inou
     // Reject sample if not in the hemisphere of a BSDF lobe.
     const uint lobeTypes = mi.getLobeTypes(sd);
     const bool hasReflection = lobeTypes & uint(LobeType::Reflection);
-    const bool hasTransmission = lobeTypes & uint(LobeType::Transmission);
+    const bool hasTransmission = (lobeTypes & uint(LobeType::Transmission)) || (sd.opacity < 1.0);
     float NdotL = dot(sd.getOrientedFaceNormal(), ls.dir);
     if ((NdotL <= kMinCosTheta && !hasTransmission) || (NdotL >= -kMinCosTheta && !hasReflection))
         return float3(0.f);
@@ -264,7 +266,12 @@ float3 evalDirectAnalytic(const ShadingData sd, const IMaterialInstance mi, inou
     float V = traceShadowRay(origin, ls.dir, ls.distance);
     if (V < 0.01) return float3(0.0);
 
-    // Evaluate contribution.
+    // flip light direction for evaluation when opacity object is hit from the other side
+    if(NdotL < 0.0 && sd.opacity < 1.0)
+    {
+        ls.dir = -ls.dir;
+        V *= (1.0 - sd.opacity);
+    }
     return V * mi.eval(sd, ls.dir, sg) * ls.Li * invPdf;
 }
 
@@ -281,9 +288,9 @@ bool generateScatterRay(const ShadingData sd, const IMaterialInstance mi, bool i
     if (sd.opacity < 1.0)
     {
         // always trace though
-        rayData.thp *= (1.0 - sd.opacity);
+        rayData.thp *= saturate(1.0 - sd.opacity);
         rayData.origin = sd.computeNewRayOrigin(false);
-        return any(rayData.thp > 0.0f);
+        return any(rayData.thp > kMinThroughput);
     }
 
     // Sample material.
@@ -297,7 +304,7 @@ bool generateScatterRay(const ShadingData sd, const IMaterialInstance mi, bool i
         }
         rayData.direction = bsdfSample.wo;
         rayData.thp *= bsdfSample.weight;
-        return any(rayData.thp > 0.f);
+        return any(rayData.thp > kMinThroughput);
     }
 
     return false;
@@ -350,7 +357,7 @@ void handleHit(const HitInfo hit, inout ScatterRayData rayData)
     if (kUseAnalyticLights)
     {
         float3 Lr = evalDirectAnalytic(sd, mi, rayData.sg);
-        rayData.radiance += rayData.thp * Lr;
+        rayData.radiance += sd.opacity * rayData.thp * Lr;
     }
 
     // Generate scatter ray for the next path segment.
