@@ -286,7 +286,10 @@ float3 evalDirectAnalytic(const ShadingData sd, const IMaterialInstance mi, inou
 */
 bool generateScatterRay(const ShadingData sd, const IMaterialInstance mi, bool isCurveHit, float3 rayOrigin, inout ScatterRayData rayData)
 {
-    if (sd.opacity < 1.0)
+    float rng1 = sampleNext1D(rayData.sg);
+
+    //if (sd.opacity < 1.0)
+    if(rng1 > sd.opacity) // for opacity = 1: always eval bsdf
     {
         // always trace though
         if(kUseRussianRoulettePath)
@@ -316,6 +319,7 @@ bool generateScatterRay(const ShadingData sd, const IMaterialInstance mi, bool i
             float rng = sampleNext1D(rayData.sg);
             if(rng > dot(bsdfSample.weight, 0.33))
                rayData.thp = 0.0; // failed roulette
+            else rayData.thp *= bsdfSample.weight / dot(bsdfSample.weight, 0.33);
         }
         else rayData.thp *= bsdfSample.weight;
 
