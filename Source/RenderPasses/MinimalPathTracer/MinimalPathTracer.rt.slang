@@ -91,10 +91,11 @@ static const bool kUseEnvBackground = USE_ENV_BACKGROUND;
 static const float3 kDefaultBackgroundColor = float3(0, 0, 0);
 static const float kRayTMax = FLT_MAX;
 
-static const float kMinThroughput = 0.01;
+static const float kMinThroughput = 0.00001;
 static const bool kUseRussianRoulettePath = USE_RUSSIAN_ROULETTE_PATH;
 static const bool kUseRussianRouletteShadow = USE_RUSSIAN_ROULETTE_PATH;
 static const bool kUseRussianRouletteOpacity = false;
+static const bool kIgnoreVBuffer = true;
 
 /** Payload for shadow ray.
 */
@@ -296,7 +297,7 @@ bool generateScatterRay(const ShadingData sd, const IMaterialInstance mi, bool i
     //if (sd.opacity < 1.0)
     if(rng1 > sd.opacity) // for opacity = 1: always eval bsdf
     {
-        // always trace though
+        // opacity not hit => trace further
         if(kUseRussianRoulettePath)
         {
             float rng = sampleNext1D(rayData.sg);
@@ -666,7 +667,32 @@ void rayGen()
     uint2 pixel = DispatchRaysIndex().xy;
     uint2 frameDim = DispatchRaysDimensions().xy;
 
-    float3 color = tracePath(pixel, frameDim);
+    float3 color;
+    if (kIgnoreVBuffer)
+    {
+        const float3 primaryRayOrigin = gScene.camera.getPosition();
+        const float3 primaryRayDir = getPrimaryRayDir(pixel, frameDim, gScene.camera);
+        SampleGenerator sg = SampleGenerator(pixel, gFrameCount);
+        for (uint i = 0; i < gPRNGDimension; i++) sampleNext1D(sg);
+
+        ScatterRayData rayData = ScatterRayData(sg);
+        rayData.direction = primaryRayDir;
+        rayData.origin = primaryRayOrigin;
+
+        // Follow path into the scene and compute its total contribution.
+        for (uint depth = 0; depth <= (kMaxBounces + 1u) && !rayData.terminated; depth++)
+        {
+            // Trace scatter ray. If it hits geometry, the closest hit shader samples
+            // direct illumination and generates the next scatter ray.
+            traceScatterRay(rayData);
+        }
+
+        color = rayData.radiance;
+    }
+    else
+    {
+        color = tracePath(pixel, frameDim);
+    }
 
     gOutputColor[pixel] = float4(color, 1.f);
 }
