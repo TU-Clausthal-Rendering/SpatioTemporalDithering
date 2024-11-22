@@ -94,7 +94,7 @@ static const float kRayTMax = FLT_MAX;
 static const float kMinThroughput = 0.00001;
 static const bool kUseRussianRoulettePath = USE_RUSSIAN_ROULETTE_PATH;
 static const bool kUseRussianRouletteShadow = USE_RUSSIAN_ROULETTE_PATH;
-static const bool kUseRussianRouletteOpacity = false;
+static const bool kUseRussianRouletteOpacity = USE_RUSSIAN_ROULETTE_PATH; // seems to have a little error? but very similar results
 static const bool kIgnoreVBuffer = true;
 
 /** Payload for shadow ray.
@@ -297,14 +297,15 @@ bool generateScatterRay(const ShadingData sd, const IMaterialInstance mi, bool i
     //if (sd.opacity < 1.0)
     if(rng1 > sd.opacity) // for opacity = 1: always eval bsdf
     {
-        // opacity not hit => trace further
-        if(kUseRussianRoulettePath)
-        {
-            float rng = sampleNext1D(rayData.sg);
-            if(rng > saturate(1.0 - sd.opacity))
-               rayData.thp = 0.0; // failed roulette
-        }
-        else rayData.thp *= saturate(1.0 - sd.opacity);
+        // throuput is already adjusted via russion roulette (rng1 > sd.opacity)
+        // opacity not hit => trace further: uncomment below if the russion roulette on top is disabled (rng1 > sd.opacity)
+        //if(kUseRussianRoulettePath)
+        //{
+        //    float rng = sampleNext1D(rayData.sg);
+        //    if(rng > saturate(1.0 - sd.opacity))
+        //       rayData.thp = 0.0; // failed roulette
+        //}
+        //else rayData.thp *= saturate(1.0 - sd.opacity);
 
         rayData.origin = sd.computeNewRayOrigin(false);
         return any(rayData.thp > kMinThroughput);
@@ -357,7 +358,7 @@ void handleHit(const HitInfo hit, inout ScatterRayData rayData)
     // Add emitted light.
     if (kUseEmissiveLights && (kComputeDirect || rayData.pathLength > 0))
     {
-        rayData.radiance += rayData.thp * mi.getProperties(sd).emission;
+        rayData.radiance += sd.opacity * rayData.thp * mi.getProperties(sd).emission;
     }
 
     // Check whether to terminate based on max depth.
