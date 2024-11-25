@@ -90,7 +90,7 @@ void VSampling::execute(RenderContext* pRenderContext, const RenderData& renderD
         pRenderContext->clearTexture(pColorOut.get(), float4(0.0f, 0.0f, 0.0f, 1.0f));
         return;
     }
-
+    
     // Request the light collection if emissive lights are enabled.
     if (mpScene->getRenderSettings().useEmissiveLights)
     {
@@ -103,13 +103,9 @@ void VSampling::execute(RenderContext* pRenderContext, const RenderData& renderD
     mTracer.pProgram->addDefine("USE_ENV_LIGHT", mpScene->useEnvLight() ? "1" : "0");
     mTracer.pProgram->addDefine("USE_ENV_BACKGROUND", mpScene->useEnvBackground() ? "1" : "0");
     mTracer.pProgram->addDefine("USE_RUSSIAN_ROULETTE_PATH", mUseRussianRoulettePath ? "1" : "0");
-
+    
     if (!mTracer.pVars)
     {
-        // Configure program.
-        mTracer.pProgram->addDefines(mpSampleGenerator->getDefines());
-        mTracer.pProgram->setTypeConformances(mpScene->getTypeConformances());
-
         // Create program variables for the current program.
         // This may trigger shader compilation. If it fails, throw an exception to abort rendering.
         mTracer.pVars = RtProgramVars::create(mpDevice, mTracer.pProgram, mTracer.pBindingTable);
@@ -123,7 +119,7 @@ void VSampling::execute(RenderContext* pRenderContext, const RenderData& renderD
     var["CB"]["gFrameCount"] = mFrameCount;
     //var["CB"]["gPRNGDimension"] = dict.keyExists(kRenderPassPRNGDimension) ? dict[kRenderPassPRNGDimension] : 0u;
     var["gColorOut"] = pColorOut;
-
+    return;
     const uint2 targetDim = renderData.getDefaultTextureDims();
     mpScene->raytrace(pRenderContext, mTracer.pProgram.get(), mTracer.pVars, uint3(targetDim, 1));
 
@@ -160,30 +156,33 @@ void VSampling::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene
 
     if (mpScene)
     {
-        if (pScene->hasGeometryType(Scene::GeometryType::Custom))
-        {
-            logWarning("MinimalPathTracer: This render pass does not support custom primitives.");
-        }
-
         // Create ray tracing program.
         RtProgram::Desc desc;
         desc.addShaderModules(mpScene->getShaderModules());
         desc.addShaderLibrary(kShaderFile);
         desc.setMaxPayloadSize(kMaxPayloadSizeBytes);
         desc.setMaxAttributeSize(mpScene->getRaytracingMaxAttributeSize());
+        desc.addTypeConformances(mpScene->getTypeConformances());
         desc.setMaxTraceRecursionDepth(kMaxRecursionDepth);
 
-        mTracer.pBindingTable = RtBindingTable::create(2, 2, mpScene->getGeometryCount());
+        mTracer.pBindingTable = RtBindingTable::create(1, 1, mpScene->getGeometryCount());
         auto& sbt = mTracer.pBindingTable;
         sbt->setRayGen(desc.addRayGen("rayGen"));
         sbt->setMiss(0, desc.addMiss("miss"));
+        //sbt->setHitGroup(0, mpScene->getGeometryIDs(Scene::GeometryType::TriangleMesh), desc.addHitGroup("closestHit", "anyHit"));
 
-        if (mpScene->hasGeometryType(Scene::GeometryType::TriangleMesh))
-        {
-            sbt->setHitGroup(0, mpScene->getGeometryIDs(Scene::GeometryType::TriangleMesh), desc.addHitGroup("closestHit", "anyHit"));
-        }
+        DefineList defines;
+        defines.add(mpScene->getSceneDefines());
+        defines.add(mpSampleGenerator->getDefines());
 
-        mTracer.pProgram = RtProgram::create(mpDevice, desc, mpScene->getSceneDefines());
+        defines.add("MAX_BOUNCES", std::to_string(mMaxBounces));
+        defines.add("USE_ANALYTIC_LIGHTS", mpScene->useAnalyticLights() ? "1" : "0");
+        defines.add("USE_EMISSIVE_LIGHTS", mpScene->useEmissiveLights() ? "1" : "0");
+        defines.add("USE_ENV_LIGHT", mpScene->useEnvLight() ? "1" : "0");
+        defines.add("USE_ENV_BACKGROUND", mpScene->useEnvBackground() ? "1" : "0");
+        defines.add("USE_RUSSIAN_ROULETTE_PATH", mUseRussianRoulettePath ? "1" : "0");
+
+        mTracer.pProgram = RtProgram::create(mpDevice, desc, defines);
     }
 
 }
