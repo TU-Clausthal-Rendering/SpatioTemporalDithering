@@ -32,7 +32,7 @@ static const bool kUseRussianRouletteOpacity = USE_RUSSIAN_ROULETTE_PATH; // see
 struct ScatterRayData
 {
     float3  radiance;       ///< Accumulated outgoing radiance from path.
-    /*bool    terminated;     ///< Set to true when path is terminated.
+    bool    terminated;     ///< Set to true when path is terminated.
     float3  thp;            ///< Current path throughput. This is updated at each path vertex.
     uint    pathLength;     ///< Path length in number of path segments (0 at origin, 1 at first secondary hit, etc.). Max 2^31.
     float3  origin;         ///< Next path segment origin.
@@ -49,22 +49,20 @@ struct ScatterRayData
         this.origin = float3(0, 0, 0);
         this.direction = float3(0, 0, 0);
         this.sg = sg;
-    }*/
+    }
 };
-/*
+
 ShadingData loadShadingData(const HitInfo hit, const float3 rayOrigin, const float3 rayDir, const ITextureSampler lod)
 {
     VertexData v = {};
     uint materialID = {};
 
-#if SCENE_HAS_GEOMETRY_TYPE(GEOMETRY_TYPE_TRIANGLE_MESH)
     if (hit.getType() == HitType::Triangle)
     {
         const TriangleHit triangleHit = hit.getTriangleHit();
         v = gScene.getVertexData(triangleHit);
         materialID = gScene.getMaterialID(triangleHit.instanceID);
     }
-#endif
 
     ShadingData sd = gScene.materials.prepareShadingData(v, materialID, -rayDir, lod);
 
@@ -79,7 +77,7 @@ void traceScatterRay(inout ScatterRayData rayData)
     ray.TMin = 0.f;
     ray.TMax = kRayTMax;
 
-    uint rayFlags = 0;      // TODO: Set cull mode from the app
+    uint rayFlags = 0;
     TraceRay(gScene.rtAccel, rayFlags, 0xff , 0 , rayTypeCount, 0 , ray, rayData);
 }
 
@@ -220,12 +218,12 @@ void handleHit(const HitInfo hit, inout ScatterRayData rayData)
 
     rayData.pathLength++;
 }
-*/
+
 
 [shader("miss")]
 void miss(inout ScatterRayData rayData)
 {
-    /*// Ray missed the scene. Mark the ray as terminated.
+    // Ray missed the scene. Mark the ray as terminated.
     rayData.terminated = true;
 
     // Add contribution from distant light (env map) in this direction.
@@ -233,14 +231,14 @@ void miss(inout ScatterRayData rayData)
     {
         float3 Le = gScene.envMap.eval(WorldRayDirection());
         rayData.radiance += rayData.thp * Le;
-    }*/
+    }
 }
 
 
 [shader("anyhit")]
 void anyHit(inout ScatterRayData rayData, BuiltInTriangleIntersectionAttributes attribs)
 {
-    /*// Alpha test for non-opaque geometry.
+    // Alpha test for non-opaque geometry.
     GeometryInstanceID instanceID = getGeometryInstanceID();
     VertexData v = getVertexData(instanceID, PrimitiveIndex(), attribs);
     const uint materialID = gScene.getMaterialID(instanceID);
@@ -256,23 +254,23 @@ void anyHit(inout ScatterRayData rayData, BuiltInTriangleIntersectionAttributes 
         }
 
         if (alpha <= 0.01f) IgnoreHit(); 
-    }*/
+    }
 }
 
 [shader("closesthit")]
 void closestHit(inout ScatterRayData rayData, BuiltInTriangleIntersectionAttributes attribs)
 {
-    /*TriangleHit triangleHit;
+    TriangleHit triangleHit;
     triangleHit.instanceID = getGeometryInstanceID();
     triangleHit.primitiveIndex = PrimitiveIndex();
     triangleHit.barycentrics = attribs.barycentrics;
-    handleHit(HitInfo(triangleHit), rayData);*/
+    handleHit(HitInfo(triangleHit), rayData);
 }
 
 [shader("raygeneration")]
 void rayGen()
 {
-    /*uint2 pixel = DispatchRaysIndex().xy;
+    uint2 pixel = DispatchRaysIndex().xy;
     uint2 frameDim = DispatchRaysDimensions().xy;
 
     const float3 primaryRayOrigin = gScene.camera.getPosition();
@@ -293,6 +291,5 @@ void rayGen()
 
     float3 color = rayData.radiance;
 
-
-    gColorOut[pixel] = float4(color, 1.f);*/
+    gColorOut[pixel] = float4(color, 1.f);
 }

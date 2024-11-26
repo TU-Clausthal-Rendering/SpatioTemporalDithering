@@ -69,7 +69,7 @@ RenderPassReflection VSampling::reflect(const CompileData& compileData)
 {
     // Define the required resources here
     RenderPassReflection reflector;
-    reflector.addOutput(kColorOut, "color");
+    reflector.addOutput(kColorOut, "color").format(ResourceFormat::RGBA32Float).bindFlags(ResourceBindFlags::AllColorViews);
     return reflector;
 }
 
@@ -119,7 +119,7 @@ void VSampling::execute(RenderContext* pRenderContext, const RenderData& renderD
     var["CB"]["gFrameCount"] = mFrameCount;
     //var["CB"]["gPRNGDimension"] = dict.keyExists(kRenderPassPRNGDimension) ? dict[kRenderPassPRNGDimension] : 0u;
     var["gColorOut"] = pColorOut;
-    return;
+    
     const uint2 targetDim = renderData.getDefaultTextureDims();
     mpScene->raytrace(pRenderContext, mTracer.pProgram.get(), mTracer.pVars, uint3(targetDim, 1));
 
@@ -169,7 +169,7 @@ void VSampling::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene
         auto& sbt = mTracer.pBindingTable;
         sbt->setRayGen(desc.addRayGen("rayGen"));
         sbt->setMiss(0, desc.addMiss("miss"));
-        //sbt->setHitGroup(0, mpScene->getGeometryIDs(Scene::GeometryType::TriangleMesh), desc.addHitGroup("closestHit", "anyHit"));
+        sbt->setHitGroup(0, mpScene->getGeometryIDs(Scene::GeometryType::TriangleMesh), desc.addHitGroup("closestHit", "anyHit"));
 
         DefineList defines;
         defines.add(mpScene->getSceneDefines());
