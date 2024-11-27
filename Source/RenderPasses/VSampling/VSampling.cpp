@@ -33,7 +33,7 @@ namespace
 {
     const char kShaderFile[] = "RenderPasses/VSampling/VBuffer.rt.slang";
 
-    const uint32_t kMaxPayloadSizeBytes = 72u;
+    const uint32_t kMaxPayloadSizeBytes = 16 + 16; // 16 byte hit info + 16 byte sample generator
     const uint32_t kMaxRecursionDepth = 1u;
 
     const std::string kColorOut = "colorOut";

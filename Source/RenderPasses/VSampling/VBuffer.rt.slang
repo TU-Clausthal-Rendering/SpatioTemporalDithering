@@ -28,28 +28,18 @@ static const bool kUseRussianRoulettePath = USE_RUSSIAN_ROULETTE_PATH;
 static const bool kUseRussianRouletteShadow = USE_RUSSIAN_ROULETTE_PATH;
 static const bool kUseRussianRouletteOpacity = USE_RUSSIAN_ROULETTE_PATH; // seems to have a little error? but very similar results
 
+struct PathSample
+{
+    float3 radiance; // unshadowed: thp * opacity * radiance
+    float weight; // scalar: thp * opacity * radiance
+    float3 lightDir;
+    float distance;
+}
 
 struct ScatterRayData
 {
-    float3  radiance;       ///< Accumulated outgoing radiance from path.
-    bool    terminated;     ///< Set to true when path is terminated.
-    float3  thp;            ///< Current path throughput. This is updated at each path vertex.
-    uint    pathLength;     ///< Path length in number of path segments (0 at origin, 1 at first secondary hit, etc.). Max 2^31.
-    float3  origin;         ///< Next path segment origin.
-    float3  direction;      ///< Next path segment direction.
-
-    SampleGenerator sg;     ///< Per-ray state for the sample generator (up to 16B).
-
-    __init(SampleGenerator sg)
-    {
-        this.terminated = false;
-        this.pathLength = 0;
-        this.radiance = float3(0, 0, 0);
-        this.thp = float3(1, 1, 1);
-        this.origin = float3(0, 0, 0);
-        this.direction = float3(0, 0, 0);
-        this.sg = sg;
-    }
+    PackedHitInfo packedHitInfo; // 16 byte
+    SampleGenerator sg; // 16 byte
 };
 
 ShadingData loadShadingData(const HitInfo hit, const float3 rayOrigin, const float3 rayDir, const ITextureSampler lod)
@@ -69,19 +59,20 @@ ShadingData loadShadingData(const HitInfo hit, const float3 rayOrigin, const flo
     return sd;
 }
 
-void traceScatterRay(inout ScatterRayData rayData)
+HitInfo traceScatterRay(inout ScatterRayData rayData, float3 origin, float3 direction)
 {
     RayDesc ray;
-    ray.Origin = rayData.origin;
-    ray.Direction = rayData.direction;
+    ray.Origin = origin;
+    ray.Direction = direction;
     ray.TMin = 0.f;
     ray.TMax = kRayTMax;
 
     uint rayFlags = 0;
     TraceRay(gScene.rtAccel, rayFlags, 0xff , 0 , rayTypeCount, 0 , ray, rayData);
+    return HitInfo(rayData.packedHitInfo);
 }
 
-float3 evalDirectAnalytic(const ShadingData sd, const IMaterialInstance mi, inout SampleGenerator sg)
+float3 evalDirectAnalytic(const ShadingData sd, const IMaterialInstance mi, inout SampleGenerator sg, out float3 lightDir, out float lightDistance)
 {
     const uint lightCount = gScene.getLightCount();
     if (lightCount == 0) return float3(0.f);
@@ -105,9 +96,11 @@ float3 evalDirectAnalytic(const ShadingData sd, const IMaterialInstance mi, inou
     // Get origin with offset applied in direction of the geometry normal to avoid self-intersection.
     const float3 origin = computeRayOrigin(sd.posW, dot(sd.faceN, ls.dir) >= 0.f ? sd.faceN : -sd.faceN);
 
-    // Test visibility by tracing a shadow ray.
-    float V = 1.0;//traceShadowRay(origin, ls.dir, ls.distance, sg);
-    if (V < 0.01) return float3(0.0);
+    float V = 1.0; // visibility factor
+
+    // Store information for the shadow ray
+    lightDir = ls.dir;
+    lightDistance = ls.distance;
 
     // flip light direction for evaluation when opacity object is hit from the other side
     if(NdotL < 0.0 && sd.opacity < 1.0)
@@ -115,62 +108,23 @@ float3 evalDirectAnalytic(const ShadingData sd, const IMaterialInstance mi, inou
         ls.dir = -ls.dir;
         V *= (1.0 - sd.opacity);
     }
+
     return V * mi.eval(sd, ls.dir, sg) * ls.Li * invPdf;
 }
 
-bool generateScatterRay(const ShadingData sd, const IMaterialInstance mi, bool isCurveHit, float3 rayOrigin, inout ScatterRayData rayData)
+bool generateScatterRay(const ShadingData sd, const IMaterialInstance mi, inout SampleGenerator sg, inout float3 rayOrigin, inout float3 rayDirection, inout float3 thp)
 {
-    float rng1 = sampleNext1D(rayData.sg);
-
-    //if (sd.opacity < 1.0)
-    if(rng1 > sd.opacity) // for opacity = 1: always eval bsdf
-    {
-        // throuput is already adjusted via russion roulette (rng1 > sd.opacity)
-        // opacity not hit => trace further: uncomment below if the russion roulette on top is disabled (rng1 > sd.opacity)
-        //if(kUseRussianRoulettePath)
-        //{
-        //    float rng = sampleNext1D(rayData.sg);
-        //    if(rng > saturate(1.0 - sd.opacity))
-        //       rayData.thp = 0.0; // failed roulette
-        //}
-        //else rayData.thp *= saturate(1.0 - sd.opacity);
-
-        rayData.origin = sd.computeNewRayOrigin(false);
-        return any(rayData.thp > kMinThroughput);
-    }
-
-    // Sample material.
-    BSDFSample bsdfSample;
-    if (mi.sample(sd, rayData.sg, bsdfSample, true))
-    {
-        rayData.origin = rayOrigin;
-        if (!isCurveHit && bsdfSample.isLobe(LobeType::Transmission))
-        {
-            rayData.origin = sd.computeNewRayOrigin(false);
-        }
-        rayData.direction = bsdfSample.wo;
-        if(kUseRussianRoulettePath)
-        {
-            float rng = sampleNext1D(rayData.sg);
-            if(rng > dot(bsdfSample.weight, 0.33))
-               rayData.thp = 0.0; // failed roulette
-            else rayData.thp *= bsdfSample.weight / dot(bsdfSample.weight, 0.33);
-        }
-        else rayData.thp *= bsdfSample.weight;
-
-        return any(rayData.thp > kMinThroughput);
-    }
-
-    return false;
+    
 }
 
-void handleHit(const HitInfo hit, inout ScatterRayData rayData)
+PathSample handleHit(const HitInfo hit, inout float3 rayOrigin, inout float3 rayDirection, inout float3 thp, inout float3 emission, inout SampleGenerator sg, inout bool terminate)
 {
-    const bool isCurveHit = hit.getType() == HitType::Curve;
+    PathSample output;
+    output.radiance = 0.0;
     let lod = ExplicitLodTextureSampler(0.f);
 
     // Load shading data.
-    ShadingData sd = loadShadingData(hit, rayData.origin, rayData.direction, lod);
+    ShadingData sd = loadShadingData(hit, rayOrigin, rayDirection, lod);
     if(kUseRussianRouletteOpacity) sd.opacity = 1.0;
 
     // Create material instance.
@@ -179,59 +133,65 @@ void handleHit(const HitInfo hit, inout ScatterRayData rayData)
     // Add emitted light.
     if (kUseEmissiveLights)
     {
-        rayData.radiance += sd.opacity * rayData.thp * mi.getProperties(sd).emission;
+        emission += sd.opacity * thp * mi.getProperties(sd).emission;
+    }
+
+    if(terminate) return output;
+
+    if (kUseAnalyticLights)
+    {
+        float3 Lr = evalDirectAnalytic(sd, mi, sg, output.lightDir, output.distance);
+        output.radiance += sd.opacity * thp * Lr;
     }
 
     // Check whether to terminate based on max depth.
-    if (rayData.pathLength >= kMaxBounces)
-    {
-        rayData.terminated = true;
-        return;
-    }
+    //if (rayData.pathLength >= kMaxBounces)
+    //{
+    //    rayData.terminated = true;
+    //    return;
+    //}
 
-    // Compute ray origin for new rays spawned from the hit.
-    float3 rayOrigin;
-    if (isCurveHit)
+    //  generate scatter ray
+    float rng1 = sampleNext1D(sg);
+    BSDFSample bsdfSample;
+    if(rng1 > sd.opacity) // for opacity = 1: always eval bsdf
     {
-        // For curves, we set the new origin at the sphere center.
-        rayOrigin = sd.posW - sd.curveRadius * sd.frame.N;
-    }
-    else
+        rayOrigin = sd.computeNewRayOrigin(false);
+    } 
+    else if (mi.sample(sd, sg, bsdfSample, true))
     {
-        rayOrigin = sd.computeNewRayOrigin();
+        rayOrigin = sd.computeNewRayOrigin(!bsdfSample.isLobe(LobeType::Transmission));
+        rayDirection = bsdfSample.wo;
+        if(kUseRussianRoulettePath)
+        {
+            float rng = sampleNext1D(sg);
+            if(rng > dot(bsdfSample.weight, 0.33))
+               thp = 0.0; // failed roulette
+            else thp = (thp * bsdfSample.weight) / dot(bsdfSample.weight, 0.33);
+        }
+        else thp = thp * bsdfSample.weight;
     }
+    else terminate = true;
+    if(any(thp <= kMinThroughput)) terminate = true;
 
-    // Add contribution of direct light from analytic lights.
-    if (kUseAnalyticLights)
-    {
-        float3 Lr = evalDirectAnalytic(sd, mi, rayData.sg);
-        rayData.radiance += sd.opacity * rayData.thp * Lr;
-    }
-
-    // Generate scatter ray for the next path segment.
-    // The raygen shader will continue the path based on the returned payload.
-    if (!generateScatterRay(sd, mi, isCurveHit, rayOrigin, rayData))
-    {
-        rayData.terminated = true;
-        return;
-    }
-
-    rayData.pathLength++;
+    return output;
 }
 
 
 [shader("miss")]
 void miss(inout ScatterRayData rayData)
 {
+    HitInfo hitInfo = { };
+    rayData.packedHitInfo = hitInfo.getData(); // Invalid hit
     // Ray missed the scene. Mark the ray as terminated.
-    rayData.terminated = true;
+    //rayData.terminated = true;
 
     // Add contribution from distant light (env map) in this direction.
-    if (kUseEnvLight && rayData.pathLength > 0)
+    /*if (kUseEnvLight && rayData.pathLength > 0)
     {
         float3 Le = gScene.envMap.eval(WorldRayDirection());
         rayData.radiance += rayData.thp * Le;
-    }
+    }*/
 }
 
 
@@ -264,7 +224,7 @@ void closestHit(inout ScatterRayData rayData, BuiltInTriangleIntersectionAttribu
     triangleHit.instanceID = getGeometryInstanceID();
     triangleHit.primitiveIndex = PrimitiveIndex();
     triangleHit.barycentrics = attribs.barycentrics;
-    handleHit(HitInfo(triangleHit), rayData);
+    rayData.packedHitInfo = HitInfo(triangleHit).getData();
 }
 
 [shader("raygeneration")]
@@ -273,23 +233,30 @@ void rayGen()
     uint2 pixel = DispatchRaysIndex().xy;
     uint2 frameDim = DispatchRaysDimensions().xy;
 
-    const float3 primaryRayOrigin = gScene.camera.getPosition();
-    const float3 primaryRayDir = gScene.camera.computeRayPinhole(pixel, frameDim).dir;
-    SampleGenerator sg = SampleGenerator(pixel, gFrameCount);
+    float3 rayOrigin = gScene.camera.getPosition();
+    float3 rayDir = gScene.camera.computeRayPinhole(pixel, frameDim).dir;
+    float3 thp = 1.0; // path throughput
+    float3 emission = 0.0; // emission along the path (does not require shadow rays, since its on the path)
+    bool terminate = false;
 
-    ScatterRayData rayData = ScatterRayData(sg);
-    rayData.direction = primaryRayDir;
-    rayData.origin = primaryRayOrigin;
+    ScatterRayData rayData;
+    rayData.sg = SampleGenerator(pixel, gFrameCount);
 
     // Follow path into the scene and compute its total contribution.
-    for (uint depth = 0; depth <= (kMaxBounces + 1u) && !rayData.terminated; depth++)
+    for (uint depth = 0; depth <= (kMaxBounces + 1u) && !terminate; depth++)
     {
-        // Trace scatter ray. If it hits geometry, the closest hit shader samples
-        // direct illumination and generates the next scatter ray.
-        traceScatterRay(rayData);
+        HitInfo hit = traceScatterRay(rayData, rayOrigin, rayDir);
+        if(!hit.isValid())
+        {
+            // TODO envmap sample
+            break;
+        }
+
+        PathSample ps = handleHit(hit, rayOrigin, rayDir, thp, emission, rayData.sg, terminate);
+        ps.weight = dot(ps.radiance, 0.33);
+
+        emission += ps.radiance; // for now add without shadows
     }
 
-    float3 color = rayData.radiance;
-
-    gColorOut[pixel] = float4(color, 1.f);
+    gColorOut[pixel] = float4(emission, 1.f);
 }
