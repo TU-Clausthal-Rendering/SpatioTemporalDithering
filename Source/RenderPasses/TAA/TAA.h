@@ -67,6 +67,10 @@ private:
         float alpha = 0.1f;
         float colorBoxSigma = 1.0f;
         bool antiFlicker = true;
+        bool useMaxMotionVector = true;
+        int colorRectifyMode = 0; // box, variance, clip or clamp
+        bool bicubicColorFetch = true; // otherwise bilinear
+
     } mControls;
 
     ref<Texture> mpPrevColor;

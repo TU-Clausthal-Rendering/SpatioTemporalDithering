@@ -33,6 +33,11 @@ cbuffer PerFrameCB
     float gAlpha;
     float gColorBoxSigma;
     bool gAntiFlicker;
+
+    bool gUseMaxMotionVector;
+    int gColorRectifyMode; // box, variance, clip or clamp
+    bool gBicubicColorFetch; // otherwise bilinear
+
 };
 
 Texture2D gTexColor;
@@ -117,17 +122,25 @@ float4 main(float2 texC : TEXCOORD) : SV_TARGET0
     float3 colorMin = colorAvg - gColorBoxSigma * sigma;
     float3 colorMax = colorAvg + gColorBoxSigma * sigma;
 
-    // Find the longest motion vector
     float2 motion = gTexMotionVec.Load(int3(ipos, 0)).xy;
-    [unroll]
-    for (int a = 0; a < 8; a++)
+    if(gUseMaxMotionVector)
     {
-        float2 m = gTexMotionVec.Load(int3(ipos + offset[a], 0)).rg;
-        motion = dot(m, m) > dot(motion, motion) ? m : motion;
+        // Find the longest motion vector
+        [unroll]
+        for (int a = 0; a < 8; a++)
+        {
+            float2 m = gTexMotionVec.Load(int3(ipos + offset[a], 0)).rg;
+            motion = dot(m, m) > dot(motion, motion) ? m : motion;
+        }
     }
+    
 
     // Use motion vector to fetch previous frame color (history)
-    float3 history = bicubicSampleCatmullRom(gTexPrevColor, gSampler, (texC + motion) * texDim, texDim);
+    float3 history;
+    if(gBicubicColorFetch)
+        history = bicubicSampleCatmullRom(gTexPrevColor, gSampler, (texC + motion) * texDim, texDim);
+    else
+        history = gTexPrevColor.SampleLevel(gSampler, texC + motion, 0).rgb;
 
     history = RGBToYCgCo(history);
 

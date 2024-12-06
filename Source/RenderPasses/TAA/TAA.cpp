@@ -113,6 +113,9 @@ void TAA::execute(RenderContext* pRenderContext, const RenderData& renderData)
     var["PerFrameCB"]["gAlpha"] = mControls.alpha;
     var["PerFrameCB"]["gColorBoxSigma"] = mControls.colorBoxSigma;
     var["PerFrameCB"]["gAntiFlicker"] = mControls.antiFlicker;
+    var["PerFrameCB"]["gUseMaxMotionVector"] = mControls.useMaxMotionVector;
+    var["PerFrameCB"]["gColorRectifyMode"] = mControls.colorRectifyMode;
+    var["PerFrameCB"]["gBicubicColorFetch"] = mControls.bicubicColorFetch;
     var["gTexColor"] = pColorIn;
     var["gTexMotionVec"] = pMotionVec;
     var["gTexPrevColor"] = mpPrevColor;
@@ -141,4 +144,7 @@ void TAA::renderUI(Gui::Widgets& widget)
     widget.var("Alpha", mControls.alpha, 0.f, 1.0f, 0.001f);
     widget.var("Color-Box Sigma", mControls.colorBoxSigma, 0.f, 15.f, 0.001f);
     widget.checkbox("Anti Flicker", mControls.antiFlicker);
+
+    widget.checkbox("Max Motion Vector", mControls.useMaxMotionVector);
+    widget.checkbox("Bicubic Color Fetch", mControls.bicubicColorFetch);
 }
