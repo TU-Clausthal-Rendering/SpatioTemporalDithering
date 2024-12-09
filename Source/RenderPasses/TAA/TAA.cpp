@@ -114,7 +114,7 @@ void TAA::execute(RenderContext* pRenderContext, const RenderData& renderData)
     var["PerFrameCB"]["gColorBoxSigma"] = mControls.colorBoxSigma;
     var["PerFrameCB"]["gAntiFlicker"] = mControls.antiFlicker;
     var["PerFrameCB"]["gUseMaxMotionVector"] = mControls.useMaxMotionVector;
-    var["PerFrameCB"]["gColorRectifyMode"] = mControls.colorRectifyMode;
+    var["PerFrameCB"]["gUseColorVariance"] = mControls.useColorVariance;
     var["PerFrameCB"]["gBicubicColorFetch"] = mControls.bicubicColorFetch;
     var["PerFrameCB"]["gUseClipping"] = mControls.useClipping;
     var["gTexColor"] = pColorIn;
@@ -140,14 +140,32 @@ void TAA::allocatePrevColor(const Texture* pColorOut)
 
 void TAA::renderUI(Gui::Widgets& widget)
 {
+    auto boolDropdown = [&](const char* displayName, bool& value, const char* falseName, const char* trueName)
+    {
+        auto dropdown = {
+            Gui::DropdownValue{0, falseName},
+            Gui::DropdownValue{1, trueName}
+        };
+
+        uint v = (value ? 1 : 0);
+        widget.dropdown(displayName, dropdown, v);
+        value = (v != 0);
+    };
+
     widget.checkbox("Enabled", mEnabled);
     if(!mEnabled) return;
     widget.var("Alpha", mControls.alpha, 0.f, 1.0f, 0.001f);
-    widget.var("Color-Box Sigma", mControls.colorBoxSigma, 0.f, 15.f, 0.001f);
+    
     widget.checkbox("Anti Flicker", mControls.antiFlicker);
+    widget.checkbox("Max Motion Vector (3x3)", mControls.useMaxMotionVector);
 
-    widget.checkbox("Max Motion Vector", mControls.useMaxMotionVector);
-    widget.checkbox("Clipping", mControls.useClipping);
-    widget.tooltip("Use clipping for rectification. Otherwise uses clamping (faster)");
-    widget.checkbox("Bicubic Color Fetch", mControls.bicubicColorFetch);
+    boolDropdown("Color-Box", mControls.useColorVariance, "BoundingBox", "Variance");
+    if(mControls.useColorVariance)
+    {
+        widget.var("Color-Box Sigma", mControls.colorBoxSigma, 0.f, 15.f, 0.001f);
+    }
+
+    boolDropdown("ClipMode", mControls.useClipping, "Clamp", "Clip");
+
+    boolDropdown("Color Fetch", mControls.bicubicColorFetch, "Bilinear", "Bicubic");
 }
