@@ -48,13 +48,16 @@ interface ITextureSampler
 */
 struct ImplicitLodTextureSampler : ITextureSampler
 {
-    __init()
+    float lodBias;
+
+    __init(float lodBias = 0.0)
     {
+        this.lodBias = lodBias;
     }
 
     float4 sampleTexture(Texture2D t, SamplerState s, float2 uv)
     {
-        return t.Sample(s, uv);
+        return t.SampleBias(s, uv, lodBias);
     }
 };
 

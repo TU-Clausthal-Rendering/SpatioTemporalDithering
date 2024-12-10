@@ -114,6 +114,7 @@ void ForwardLighting::execute(RenderContext* pRenderContext, const RenderData& r
         mpVars->getRootVar()["ConstantCB"]["gEnvMapIntensity"] = mEnvMapIntensity;
         mpVars->getRootVar()["ConstantCB"]["gLightIntensity"] = mLightIntensity;
         mpVars->getRootVar()["ConstantCB"]["gEnvMapMirror"] = mEnvMapMirror;
+        mpVars->getRootVar()["ConstantCB"]["gLodBias"] = mLodBias;
         mDirty = false;
     }
 
@@ -125,6 +126,7 @@ void ForwardLighting::renderUI(Gui::Widgets& widget)
     if (widget.var("Ambient Intensity", mAmbientIntensity, 0.f, 100.f, 0.1f)) mDirty = true;
     if (widget.var("Env Map Intensity", mEnvMapIntensity, 0.f, 100.f, 0.1f)) mDirty = true;
     if (widget.var("Scene Light Intensity", mLightIntensity, 0.f, 100.f, 0.1f)) mDirty = true;
+    if (widget.var("Texture LOD Bias", mLodBias, -16.0f, 16.0f, 0.1f)) mDirty = true;
     if (widget.checkbox("Env Map Mirror Reflections", mEnvMapMirror)) mDirty = true;
 }
 

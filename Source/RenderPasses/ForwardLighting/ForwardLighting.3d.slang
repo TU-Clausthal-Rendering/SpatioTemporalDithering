@@ -11,6 +11,7 @@ cbuffer ConstantCB
     float gEnvMapIntensity;
     float gLightIntensity;
     bool gEnvMapMirror;
+    float gLodBias; // user lower LOD to prevent blur from TAA
 };
 
 VSOut vsMain(VSIn vIn)
@@ -33,7 +34,7 @@ float roughnessToIntensity(float roughness)
 
 float4 psMain(VSOut vsOut, uint triangleIndex : SV_PrimitiveID) : SV_TARGET
 {
-    let lod = ImplicitLodTextureSampler();
+    let lod = ImplicitLodTextureSampler(gLodBias);
     if (alphaTest(vsOut, triangleIndex, lod))
         discard;
 
