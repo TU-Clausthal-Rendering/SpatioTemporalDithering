@@ -42,16 +42,17 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
     // fetch local depth values
     [unroll] for(uint i = 0; i < 9; ++i)
     {
-        localDepths[i] = gDepthTex.Sample(gSampler, uv + offsets[i] * gStep, 0);
+        localDepths[i] = gDepthTex.SampleLevel(gSampler, uv + offsets[i] * gStep, 0);
     }
     [unroll] for(uint i = 0; i < 9; ++i)
     {
-        colors[i] = gColorIn.Sample(gSampler, uv + offsets[i] * gStep, 0).rgb;
+        colors[i] = gColorIn.SampleLevel(gSampler, uv + offsets[i] * gStep, 0).rgb;
     }
     [unroll] for(uint i = 0; i < 8; ++i)
     {
         //msaaDepths[i] = gDepthSamples.Sample(gSampler, float3(uv, i), 0);
-        float msDepth = gDepthSamples.Sample(gSampler, float3(uv, i), 0);
+        //float msDepth = gDepthSamples.Sample(gSampler, float3(uv, i), 0);
+        float msDepth = gDepthSamples[int3(id.xy, i)];
         // find best fit for ms depth in the local depths
         float minDiff = abs(localDepths[4] - msDepth);
         float3 bestColor = colors[4];
@@ -70,5 +71,5 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 
     // normalize color
     colorSum /= 9.0f;
-    gColorOut[id.xy] = color;
+    gColorOut[id.xy] = float4(colorSum, 1.0);
 }
