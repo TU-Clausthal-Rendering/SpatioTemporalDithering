@@ -7,6 +7,10 @@ Texture2DArray<float> gDepthSamples;
 
 SamplerState gSampler;
 
+#ifndef MSAA_SAMPLES
+#define MSAA_SAMPLES 8
+#endif
+
 cbuffer CB
 {
     float2 gStep; // = 1 / resolution
@@ -48,7 +52,7 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
     {
         colors[i] = gColorIn.SampleLevel(gSampler, uv + offsets[i] * gStep, 0).rgb;
     }
-    [unroll] for(uint i = 0; i < 8; ++i)
+    [unroll] for(uint i = 0; i < MSAA_SAMPLES; ++i)
     {
         //msaaDepths[i] = gDepthSamples.Sample(gSampler, float3(uv, i), 0);
         //float msDepth = gDepthSamples.Sample(gSampler, float3(uv, i), 0);
@@ -70,6 +74,6 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
     }
 
     // normalize color
-    colorSum /= 9.0f;
+    colorSum /= (MSAA_SAMPLES + 1);
     gColorOut[id.xy] = float4(colorSum, 1.0);
 }

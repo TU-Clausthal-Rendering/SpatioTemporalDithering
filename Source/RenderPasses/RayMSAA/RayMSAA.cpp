@@ -105,6 +105,8 @@ void RayMSAA::execute(RenderContext* pRenderContext, const RenderData& renderDat
     if(!mpRayProgram)
     {
         auto defines = mpScene->getSceneDefines();
+        auto rayConeSpread = mpScene->getCamera()->computeScreenSpacePixelSpreadAngle(renderData.getDefaultTextureDims().y);
+        defines.add("RAY_CONE_SPREAD", std::to_string(rayConeSpread));
         RtProgram::Desc desc;
         desc.addShaderModules(mpScene->getShaderModules());
         desc.addShaderLibrary(kRayShader);
@@ -121,6 +123,7 @@ void RayMSAA::execute(RenderContext* pRenderContext, const RenderData& renderDat
         
         mpRayProgram = RtProgram::create(mpDevice, desc, defines);
         mpRayVars = RtProgramVars::create(mpDevice, mpRayProgram, sbt);
+        mpRayVars->getRootVar()["gSampler"] = mpPointSampler;
     }
 
     {
@@ -146,6 +149,7 @@ void RayMSAA::execute(RenderContext* pRenderContext, const RenderData& renderDat
 
     {
         FALCOR_PROFILE(pRenderContext, "ColorResolve");
+        mpColorPass->getProgram()->addDefine("MSAA_SAMPLES", std::to_string(mSamples));
         auto var = mpColorPass->getRootVar();
         var["gColorIn"] = pColorIn;
         var["gColorOut"] = pColorOut;

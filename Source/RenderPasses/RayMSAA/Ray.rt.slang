@@ -1,9 +1,13 @@
 #include "Utils/Math/MathConstants.slangh"
 import Scene.Raytracing;
+import Rendering.Materials.TexLODHelpers;
+import Rendering.Materials.TexLODTypes;
 
 Texture2D<float> gDepthTex;
 Texture2D<uint> gEdgeTex;
 RWTexture2DArray<float> gDepthSamples;
+
+SamplerState gSampler;
 
 struct RayData
 {
@@ -22,6 +26,25 @@ static const float2 sample_pos[8] = {
     float2( 7.0 / 16.0, -7.0 / 16.0)
 };
 
+float RayToViewDepth(float3 rayDir, float rayT)
+{
+    float cosTheta = dot(normalize(gScene.camera.data.cameraW), rayDir);
+    return rayT * cosTheta;
+}
+
+float ViewDepthToRay(float3 rayDir, float viewDepth)
+{
+    float cosTheta = dot(normalize(gScene.camera.data.cameraW), rayDir);
+    return viewDepth / cosTheta;    
+}
+
+ExplicitRayConesLodTextureSampler computeLod(VertexData v, float3 rayDir)
+{
+    RayCone rc = RayCone(0.0, RAY_CONE_SPREAD);
+    rc = rc.propagateDistance(RayTCurrent());
+    float lambda = rc.computeLOD(v.coneTexLODValue, rayDir, v.faceNormalW);
+    return ExplicitRayConesLodTextureSampler(lambda);
+}
 
 [shader("anyhit")]
 void anyHit(inout RayData rayData, BuiltInTriangleIntersectionAttributes attribs)
@@ -29,7 +52,8 @@ void anyHit(inout RayData rayData, BuiltInTriangleIntersectionAttributes attribs
     GeometryInstanceID instanceID = getGeometryInstanceID();
     VertexData v = getVertexData(instanceID, PrimitiveIndex(), attribs);
     const uint materialID = gScene.getMaterialID(instanceID);
-    ExplicitLodTextureSampler lod = { 0.0 };
+    //ExplicitLodTextureSampler lod = { 0.0 };
+    let lot = computeLod(v, WorldRayDirection());
 
     if (gScene.materials.alphaTest(v, materialID, 0.f)) IgnoreHit();
 }
@@ -49,15 +73,40 @@ void closestHit(inout RayData rayData, BuiltInTriangleIntersectionAttributes att
 void rayGen()
 {
     uint3 id = DispatchRaysIndex();
+    float2 uv = (id.xy + 0.5) / DispatchRaysDimensions().xy;
+    float2 gStep = 1.0 / DispatchRaysDimensions().xy;
     uint edge = gEdgeTex[id.xy];
     if(!edge) return;
+
+    // obtain ray boundaries
+    float2 offsets[9] = {
+        float2(-1, -1), float2(0, -1), float2(1, -1),
+        float2(-1,  0), float2(0,  0), float2(1,  0),
+        float2(-1,  1), float2(0,  1), float2(1,  1)
+    };
+    
+    float minDepth = FLT_MAX;
+    float maxDepth = 0.0;
+    // fetch local depth values
+    [unroll] for(uint i = 0; i < 9; ++i)
+    {
+        float d = gDepthTex.SampleLevel(gSampler, uv + offsets[i] * gStep, 0);
+        minDepth = min(minDepth, d);
+        maxDepth = max(maxDepth, d);
+    }
 
     float2 pixel = float2(id.xy) + 0.5 + sample_pos[id.z];
     RayDesc ray;
     ray.Origin = gScene.camera.data.posW;
-    ray.Direction = normalize(gScene.camera.computeNonNormalizedRayDirPinhole(id.xy, DispatchRaysDimensions().xy, sample_pos[id.z] + 0.5));
-    ray.TMin = gScene.camera.data.nearZ;
-    ray.TMax = gScene.camera.data.farZ;
+    ray.Direction = normalize(gScene.camera.computeNonNormalizedRayDirPinhole(id.xy, DispatchRaysDimensions().xy, sample_pos[id.z] + 0.5));    
+    ray.TMin = minDepth;
+    ray.TMax = maxDepth;
+    //ray.TMin = gScene.camera.data.nearZ;
+    //ray.TMax = gScene.camera.data.farZ;
+
+    // convert to proper ray depth
+    ray.TMin = ViewDepthToRay(ray.Direction, ray.TMin);
+    ray.TMax = ViewDepthToRay(ray.Direction, ray.TMax);
 
     RayData rayData;
     rayData.depth = FLT_MAX;
@@ -69,5 +118,5 @@ void rayGen()
         ray, rayData
     );
 
-    gDepthSamples[id] = rayData.depth;
+    gDepthSamples[id] = RayToViewDepth(ray.Direction, rayData.depth);
 }
