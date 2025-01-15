@@ -72,8 +72,6 @@ private:
         bool useColorVariance = true; // otherwise color bounding box
         bool bicubicColorFetch = true; // otherwise bilinear
         bool useClipping = false; // otherwise use clamping
-        bool useHistory = false; // otherwise exponential moving average
-        int maxHistory = 20; // max accumulated frames (theory)
         bool rejectOccluded = false;
     } mControls;
 
@@ -81,8 +79,6 @@ private:
 
     ref<Texture> mpPrevLinearZ;
 
-    ref<Texture> mpPrevHistory;
-    ref<Texture> mpCurHistory;
     bool mEnabled = true;
     bool mClear = false;
 };

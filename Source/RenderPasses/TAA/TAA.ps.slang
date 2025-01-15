@@ -37,31 +37,18 @@ cbuffer PerFrameCB
     bool gUseColorVariance; // otherwise bounding box
     bool gBicubicColorFetch; // otherwise bilinear
     bool gUseClipping; // otherwise clamping
-    bool gUseHistory;  // otherwise exponential decay
     bool gRectifyColor; // otherwise no rectification
     bool gRejectOccluded;
-    int gMaxHistory; // max count for history
 };
 
 Texture2D gTexColor;
 Texture2D gTexMotionVec;
 Texture2D gTexPrevColor;
-Texture2D gTexPrevHistory;
 SamplerState gSampler;
 
 Texture2D<float> gTexLinearZ;
 Texture2D<float> gTexPrevLinearZPixel; // the previous linearZ from the current pixel (do not use motion vectors for this)
 Texture2D<float> gTexPrevLinearZ; // copy of linearZ from the previous frame (needs motion vectors for lookup)
-
-float encodeHistory(int history)
-{
-    return history / 255.0;
-}
-
-int decodeHistory(float history)
-{
-    return int(history * 255.0 + 0.5);
-}
 
 bool previousOccluded(int2 pixelPos, float2 prevUV)
 {
@@ -222,7 +209,6 @@ float2 clipBox(float2 minv, float2 maxv, float2 lineStart, float2 lineEnd)
 struct PSOut
 {
     float4 color : SV_TARGET0;
-    float history : SV_TARGET1; // UNORM encoded history
 };
 
 PSOut main(float2 texC : TEXCOORD) : SV_TARGET0
@@ -296,8 +282,6 @@ PSOut main(float2 texC : TEXCOORD) : SV_TARGET0
         history = gTexPrevColor.SampleLevel(gSampler, texC + motion, 0).rgb;
 
     history = RGBToYCgCo(history);
-    // history N
-    int N = decodeHistory(gTexPrevHistory.SampleLevel(gSampler, texC + motion, 0).r);
 
     float alpha = gAlpha;
 
@@ -329,32 +313,17 @@ PSOut main(float2 texC : TEXCOORD) : SV_TARGET0
     {
         // reset color and history
         history = color;
-        N = 0;
     }
 
     // reset if reprojection was out of bounds
     if (any(texC + motion != saturate(texC + motion)))
     {
         history = color;
-        N = 0;
     }
-    
-    if(any(originalHistory != history)) N = 0; // reset history
 
     PSOut output;
-    if(gUseHistory)
-    {
-        float3 result = YCgCoToRGB(lerp(history, color, 1.0 / (N+1)));
-        output.color = float4(result, 1.f);
-    }
-    else
-    {
-
-        float3 result = YCgCoToRGB(lerp(history, color, alpha));
-        //float3 result = lerp(YCgCoToRGB(history), YCgCoToRGB(color), alpha);
-        output.color = float4(result, 1.f);
-    }
+    float3 result = YCgCoToRGB(lerp(history, color, alpha));
+    output.color = float4(result, 1.f);
     
-    output.history = encodeHistory(min(gMaxHistory, N+1));
     return output;
 }
