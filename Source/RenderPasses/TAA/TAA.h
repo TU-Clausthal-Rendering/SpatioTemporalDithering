@@ -60,8 +60,11 @@ private:
     void allocatePrevColorAndHistory(const Texture* pColorOut);
 
     ref<FullScreenPass> mpPass;
+    ref<FullScreenPass> mpBlurPass;
+    ref<FullScreenPass> mpBlendPass;
     ref<Fbo> mpFbo;
     ref<Sampler> mpLinearSampler;
+    ref<Sampler> mpPointSampler;
 
     struct
     {
@@ -76,6 +79,7 @@ private:
         bool rejectOccluded = false;
         bool rejectMotion = false; // reject if motion change is too strong
         bool rejectVBufferMotion = false; // reject if previous vbuffer entry moved
+        int blurRadius = 1;
     } mControls;
 
     ref<Texture> mpPrevColor;

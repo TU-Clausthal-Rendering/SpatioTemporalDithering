@@ -232,11 +232,12 @@ float2 clipBox(float2 minv, float2 maxv, float2 lineStart, float2 lineEnd)
 
 struct PSOut
 {
-    float4 color : SV_TARGET0;
+    //float4 color : SV_TARGET0;
     float motionMask : SV_TARGET1;
+    float4 taaColor : SV_TARGET2;
 };
 
-PSOut main(float2 texC : TEXCOORD) : SV_TARGET0
+PSOut main(float2 texC : TEXCOORD)
 {
     const int2 offset[9] =
     {
@@ -348,14 +349,12 @@ PSOut main(float2 texC : TEXCOORD) : SV_TARGET0
 
     if (gRejectOccluded) if (previousOccluded(ipos, texC + motion))
     {
-        // reset color and history
-        history = color;
+        alpha = 1.0;
     }
 
     // reset if reprojection was out of bounds
     if (any(texC + motion != saturate(texC + motion)))
     {
-        history = color;
         alpha = 1.0;
     }
     else if (gRejectVBufferMotion)
@@ -403,8 +402,9 @@ PSOut main(float2 texC : TEXCOORD) : SV_TARGET0
     if (gRejectMotion) alpha = lerp(alpha, 1.0, saturate(output.motionMask / 1.0));
     output.motionMask = alpha;
 
-    float3 result = YCgCoToRGB(lerp(history, color, alpha));
-    output.color = float4(result, 1.f);
+    output.taaColor = float4(YCgCoToRGB(history), 1.0);
+    //float3 result = YCgCoToRGB(lerp(history, color, alpha));
+    //output.color = float4(result, 1.f);
 
     // output.motionMask = length(motion - prevMotion) / (length(motion) + 0.1);
     // normalize motion vector by time delta

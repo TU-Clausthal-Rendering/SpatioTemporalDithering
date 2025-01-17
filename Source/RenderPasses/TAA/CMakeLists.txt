@@ -4,6 +4,8 @@ target_sources(TAA PRIVATE
     TAA.cpp
     TAA.h
     TAA.ps.slang
+    Blur.ps.slang
+    Blend.ps.slang
 )
 
 target_copy_shaders(TAA RenderPasses/TAA)
