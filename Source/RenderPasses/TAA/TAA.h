@@ -47,6 +47,7 @@ public:
     virtual RenderPassReflection reflect(const CompileData& compileData) override;
     virtual void execute(RenderContext* pRenderContext, const RenderData& renderData) override;
     virtual void renderUI(Gui::Widgets& widget) override;
+    void setScene(RenderContext* pRenderContext, const ref<Scene>& pScene) override;
 
     void setAlpha(float alpha) { mControls.alpha = alpha; }
     void setColorBoxSigma(float sigma) { mControls.colorBoxSigma = sigma; }
@@ -74,12 +75,15 @@ private:
         bool useClipping = false; // otherwise use clamping
         bool rejectOccluded = false;
         bool rejectMotion = false; // reject if motion change is too strong
+        bool rejectVBufferMotion = false; // reject if previous vbuffer entry moved
     } mControls;
 
     ref<Texture> mpPrevColor;
     ref<Texture> mpPrevMotion;
     ref<Texture> mpPrevLinearZ;
     ref<Texture> mpPrevVBuffer;
+
+    ref<Scene> mpScene;
 
     CpuTimer mTimer;
     float mCurrentDelta = 0.0f;

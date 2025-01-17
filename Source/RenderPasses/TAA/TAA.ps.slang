@@ -26,6 +26,11 @@
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
 import Utils.Color.ColorHelpers;
+import Scene.RaytracingInline;
+import Scene.Intersection;
+import Utils.Math.PackedFormats;
+#include "Scene/SceneDefines.slangh"
+
 
 cbuffer PerFrameCB
 {
@@ -351,6 +356,41 @@ PSOut main(float2 texC : TEXCOORD) : SV_TARGET0
     if (any(texC + motion != saturate(texC + motion)))
     {
         history = color;
+        alpha = 1.0;
+    }
+    else if (gRejectVBufferMotion)
+    {
+        int2 iposprev = int2((texC + motion) * texDim);
+        HitInfo hitInfo = HitInfo(gTexPrevVBuffer[iposprev]);
+        if (hitInfo.getType() == HitType::Triangle)
+        {
+            VertexData v = gScene.getVertexData(hitInfo.getTriangleHit());
+            float3 posW = v.posW; // check if posW projects to the current pixel
+            float4 posH = mul(gScene.camera.data.viewProjMatNoJitter, float4(posW, 1.0));
+            float2 posUV = posH.xy / posH.w * float2(0.5, -0.5) + 0.5;
+            float beta = saturate((length((texC - posUV) * float2(texDim)) - 0.8) * 10.0);
+            /*for (int i = 0; i < 8; ++i)
+            {
+                hitInfo = HitInfo(gTexPrevVBuffer[iposprev + offset[i]]);
+                if (hitInfo.getType() == HitType::Triangle)
+                {
+                    v = gScene.getVertexData(hitInfo.getTriangleHit());
+                    posW = v.posW;
+                    posH = mul(gScene.camera.data.viewProjMatNoJitter, float4(posW, 1.0));
+                    posUV = posH.xy / posH.w * float2(0.5, -0.5) + 0.5;
+                    beta = max(beta, saturate((length((texC - posUV) * float2(texDim)) - 1.8) * 10.0));
+                }
+            }*/
+            alpha = lerp(alpha, 1.0, beta);
+        }
+        else alpha = 1.0; // reset on invalid hit info
+
+        /*for (int i = 0; i < 8; ++i)
+        {
+            float2 m = gTexPrevMotionVec[iposprev + offset[i]].xy;
+            // take previous motion with largest difference to current motion
+            prevMotion = length(motion - m) > length(motion - prevMotion) ? m : prevMotion;
+        }*/
     }
 
     PSOut output;
@@ -360,7 +400,7 @@ PSOut main(float2 texC : TEXCOORD) : SV_TARGET0
     //output.motionMask = length(motion - prevMotion) * 30.0;
    // output.motionMask = sqrt(abs(dot(motion, motion) - dot(prevMotion, prevMotion))) * 100.0;
     // increase alpha based on motion
-    if (gRejectMotion) alpha = lerp(alpha, 1.f, saturate(output.motionMask / 1.0));
+    if (gRejectMotion) alpha = lerp(alpha, 1.0, saturate(output.motionMask / 1.0));
     output.motionMask = alpha;
 
     float3 result = YCgCoToRGB(lerp(history, color, alpha));

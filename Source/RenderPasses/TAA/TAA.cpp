@@ -67,7 +67,6 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry & regist
 TAA::TAA(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
-    mpPass = FullScreenPass::create(mpDevice, kShaderFilename);
     mpFbo = Fbo::create(mpDevice);
     Sampler::Desc samplerDesc;
     samplerDesc.setFilterMode(Sampler::Filter::Linear, Sampler::Filter::Linear, Sampler::Filter::Linear);
@@ -125,7 +124,7 @@ void TAA::execute(RenderContext* pRenderContext, const RenderData& renderData)
 
     if (!pLinearZ || !pPrevLinearZ) mControls.rejectOccluded = false; // cannot use this without the depth buffers
 
-    if(!mEnabled)
+    if(!mEnabled || !mpPass)
     {
         pRenderContext->blit(pColorIn->getSRV(), pColorOut->getRTV());
         return;
@@ -151,6 +150,7 @@ void TAA::execute(RenderContext* pRenderContext, const RenderData& renderData)
     var["PerFrameCB"]["gRectifyColor"] = mControls.rectifyColor;
     var["PerFrameCB"]["gRejectOccluded"] = mControls.rejectOccluded;
     var["PerFrameCB"]["gRejectMotion"] = mControls.rejectMotion;
+    var["PerFrameCB"]["gRejectVBufferMotion"] = mControls.rejectVBufferMotion;
     var["PerFrameCB"]["gPrevFrameDelta"] = std::max(mPreviousDelta, 0.000001f);
     var["PerFrameCB"]["gCurFrameDelta"] = std::max(mCurrentDelta, 0.000001f);
     var["gTexColor"] = pColorIn;
@@ -163,6 +163,8 @@ void TAA::execute(RenderContext* pRenderContext, const RenderData& renderData)
     var["gTexVBuffer"] = pVBuffer;
     var["gTexPrevVBuffer"] = mpPrevVBuffer;
     var["gSampler"] = mpLinearSampler;
+    // set the gScene variable: (even though this does not require ray tracing)
+    mpScene->setRaytracingShaderData(pRenderContext, var);
 
     mpPass->execute(pRenderContext, mpFbo);
     pRenderContext->blit(pColorOut->getSRV(), mpPrevColor->getRTV());
@@ -241,7 +243,19 @@ void TAA::renderUI(Gui::Widgets& widget)
 
     widget.checkbox("Reject Occluded", mControls.rejectOccluded);
     widget.checkbox("Reject Motion", mControls.rejectMotion);
+    widget.checkbox("Reject VBuffer Motion", mControls.rejectVBufferMotion);
 
     if (widget.button("Clear"))
         mClear = true;
+}
+
+void TAA::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene)
+{
+    mpScene = pScene;
+    mpPass.reset();
+    if(mpScene)
+    {
+        auto defines = mpScene->getSceneDefines();
+        mpPass = FullScreenPass::create(mpDevice, kShaderFilename, defines);
+    }
 }
