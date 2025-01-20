@@ -43,6 +43,7 @@ public:
         DirectX,
         Halton,
         Stratified,
+        Decima2x,
     };
 
     FALCOR_ENUM_INFO(SamplePattern, {
@@ -50,6 +51,7 @@ public:
         { SamplePattern::DirectX, "DirectX" },
         { SamplePattern::Halton, "Halton" },
         { SamplePattern::Stratified, "Stratified" },
+        { SamplePattern::Decima2x, "Decima2x" }
     });
 
     virtual void renderUI(Gui::Widgets& widget) override;

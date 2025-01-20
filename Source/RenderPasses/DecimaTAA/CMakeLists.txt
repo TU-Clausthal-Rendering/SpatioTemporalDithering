@@ -5,6 +5,7 @@ target_sources(DecimaTAA PRIVATE
     DecimaTAA.h
     Sharpen.ps.slang
     TAA.ps.slang
+    DecimaSamplePattern.h
 )
 
 target_copy_shaders(DecimaTAA RenderPasses/DecimaTAA)

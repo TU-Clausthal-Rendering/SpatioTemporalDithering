@@ -34,6 +34,7 @@
 #include "Utils/SampleGenerators/DxSamplePattern.h"
 #include "Utils/SampleGenerators/HaltonSamplePattern.h"
 #include "Utils/SampleGenerators/StratifiedSamplePattern.h"
+#include "../RenderPasses/DecimaTAA/DecimaSamplePattern.h"
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
 {
@@ -198,6 +199,8 @@ static ref<CPUSampleGenerator> createSamplePattern(GBufferBase::SamplePattern ty
         return HaltonSamplePattern::create(sampleCount);
     case GBufferBase::SamplePattern::Stratified:
         return StratifiedSamplePattern::create(sampleCount);
+    case GBufferBase::SamplePattern::Decima2x:
+        return DecimaSamplePattern::create(sampleCount);
     default:
         FALCOR_UNREACHABLE();
         return nullptr;
