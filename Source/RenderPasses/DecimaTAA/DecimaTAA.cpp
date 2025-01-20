@@ -82,6 +82,17 @@ void DecimaTAA::execute(RenderContext* pRenderContext, const RenderData& renderD
 
     allocatePrevColor(pTaaOut.get());
 
+    // obtain jitter direction for current frame (expect (-0.5, 0.0) or (0.0, -0.5) values)
+    float2 jitterDir = float2(0.0f, 0.0f);
+    if(mpScene)
+    {
+        auto cam = mpScene->getCamera();
+        if (abs(cam->getJitterX()) > abs(cam->getJitterY()))
+            jitterDir.x = 1.0f;
+        else
+            jitterDir.y = 1.0f;
+    }
+
     {
         FALCOR_PROFILE(pRenderContext, "Sharpen");
         mpFbo->attachColorTarget(mpCurSharp, 0);
@@ -89,6 +100,8 @@ void DecimaTAA::execute(RenderContext* pRenderContext, const RenderData& renderD
         auto var = mpSharpenPass->getRootVar();
         var["gInput"] = pFxaaIn;
         var["gSampler"] = mpLinearSampler;
+        var["PerFrameCB"]["dir"] = jitterDir;
+        var["PerFrameCB"]["gSharpen"] = mControls.sharpen;
 
         mpSharpenPass->execute(pRenderContext, mpFbo);
     }
@@ -121,7 +134,8 @@ void DecimaTAA::renderUI(Gui::Widgets& widget)
     widget.checkbox("Enabled", mEnabled);
     if (!mEnabled) return;
 
-    widget.var("Color-Box Sigma", mControls.colorBoxSigma, 0.f, 15.f, 0.001f);
+    widget.var("Color-Box Sigma", mControls.colorBoxSigma, 0.f, 500.f, 0.001f);
+    widget.slider("Sharpen", mControls.sharpen, 0.f, 1.f);
 }
 
 void DecimaTAA::allocatePrevColor(const Texture* pColorOut)

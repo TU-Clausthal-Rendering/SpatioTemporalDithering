@@ -110,7 +110,7 @@ float4 main(float2 texC : TEXCOORD) : SV_TARGET0
         alpha = 1.0; // use current frame if reprojection is out of bounds
     }
 
-    if(any(clamp(history, colorMin, colorMax) != history))
+    if(gColorBoxSigma < 499.0 && any(clamp(history, colorMin, colorMax) != history))
     {
         alpha = 1.0; // use current frame if color is not accepted
     }
