@@ -54,6 +54,21 @@ public:
         { SamplePattern::Decima2x, "Decima2x" }
     });
 
+    enum class AlphaTestMode // copy from Source/Falcor/Scene/Material/AlphaTest.slang
+    {
+        Disabled,
+        Basic,
+        HashedIsotropic,
+        HashedAnisotropic,
+    };
+
+    FALCOR_ENUM_INFO(AlphaTestMode, {
+        { AlphaTestMode::Disabled, "Disabled" },
+        { AlphaTestMode::Basic, "Basic" },
+        { AlphaTestMode::HashedIsotropic, "Hashed Isotropic" },
+        { AlphaTestMode::HashedAnisotropic, "Hashed Anisotropic" }
+    });
+
     virtual void renderUI(Gui::Widgets& widget) override;
     virtual void execute(RenderContext* pRenderContext, const RenderData& renderData) override;
     virtual Properties getProperties() const override;
@@ -66,6 +81,8 @@ protected:
     void updateFrameDim(const uint2 frameDim);
     void updateSamplePattern();
     ref<Texture> getOutput(const RenderData& renderData, const std::string& name) const;
+
+    void setAlphaTestDefines(Program& program) const;
 
     // Internal state
     ref<Scene>                      mpScene;
@@ -81,13 +98,15 @@ protected:
     uint2                           mFixedOutputSize = { 512, 512 };                ///< Output size in pixels when 'Fixed' size is selected.
     SamplePattern                   mSamplePattern = SamplePattern::Center;         ///< Which camera jitter sample pattern to use.
     uint32_t                        mSampleCount = 16;                              ///< Sample count for camera jitter.
-    bool                            mUseAlphaTest = true;                           ///< Enable alpha test.
+    //bool                            mUseAlphaTest = true;                           ///< Enable alpha test.
     bool                            mAdjustShadingNormals = true;                   ///< Adjust shading normals.
     bool                            mForceCullMode = false;                         ///< Force cull mode for all geometry, otherwise set it based on the scene.
     RasterizerState::CullMode       mCullMode = RasterizerState::CullMode::Back;    ///< Cull mode to use for when mForceCullMode is true.
     float                           mTextureLodBias = 0.0f;                         ///< Bias applied after texture lod calculation.
+    AlphaTestMode                   mAlphaTestMode = AlphaTestMode::Basic;          ///< Alpha test mode.
 
     bool                            mOptionsChanged = false;                        ///< Indicates whether any options that affect the output have changed since last frame.
 };
 
 FALCOR_ENUM_REGISTER(GBufferBase::SamplePattern);
+FALCOR_ENUM_REGISTER(GBufferBase::AlphaTestMode);

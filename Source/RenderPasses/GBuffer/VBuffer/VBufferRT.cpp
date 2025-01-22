@@ -266,7 +266,8 @@ DefineList VBufferRT::getShaderDefines(const RenderData& renderData) const
 {
     DefineList defines;
     defines.add("COMPUTE_DEPTH_OF_FIELD", mComputeDOF ? "1" : "0");
-    defines.add("USE_ALPHA_TEST", mUseAlphaTest ? "1" : "0");
+    defines.add("USE_ALPHA_TEST", mAlphaTestMode != AlphaTestMode::Disabled ? "1" : "0");
+    defines.add("_ALPHA_TEST_MODE", std::to_string((uint32_t)mAlphaTestMode));
     defines.add("TEXTURE_LOD_BIAS", std::to_string(mTextureLodBias));
 
     // Setup ray flags.

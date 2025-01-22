@@ -51,6 +51,7 @@ namespace
     const char kFixedOutputSize[] = "fixedOutputSize";
     const char kSamplePattern[] = "samplePattern";
     const char kSampleCount[] = "sampleCount";
+    const char kAlphaTestMode[] = "alphaTestMode"; // new for my version
     const char kUseAlphaTest[] = "useAlphaTest";
     const char kDisableAlphaTest[] = "disableAlphaTest"; ///< Deprecated for "useAlphaTest".
     const char kAdjustShadingNormals[] = "adjustShadingNormals";
@@ -61,22 +62,27 @@ namespace
 
 void GBufferBase::parseProperties(const Properties& props)
 {
+    bool hasAlphaTestMode = false;
     for (const auto& [key, value] : props)
     {
         if (key == kOutputSize) mOutputSizeSelection = value;
         else if (key == kFixedOutputSize) mFixedOutputSize = value;
         else if (key == kSamplePattern) mSamplePattern = value;
         else if (key == kSampleCount) mSampleCount = value;
-        else if (key == kUseAlphaTest) mUseAlphaTest = value;
+        else if (key == kUseAlphaTest && !hasAlphaTestMode) mAlphaTestMode = static_cast<bool>(value) ? AlphaTestMode::Basic : AlphaTestMode::Disabled;
         else if (key == kAdjustShadingNormals) mAdjustShadingNormals = value;
         else if (key == kForceCullMode) mForceCullMode = value;
         else if (key == kCullMode) mCullMode = value;
         else if (key == kTextureLodBias) mTextureLodBias = value;
+        else if (key == kAlphaTestMode) {
+            mAlphaTestMode = value;
+            hasAlphaTestMode = true; // takes precedence over other alpha test variables
+        }
         // TODO: Check for unparsed fields, including those parsed in derived classes.
     }
 
     // Handle deprecated "disableAlphaTest" value.
-    if (props.has(kDisableAlphaTest) && !props.has(kUseAlphaTest)) mUseAlphaTest = !props[kDisableAlphaTest];
+    if (!hasAlphaTestMode && props.has(kDisableAlphaTest) && !props.has(kUseAlphaTest)) mAlphaTestMode = bool(props[kDisableAlphaTest]) ? AlphaTestMode::Disabled : AlphaTestMode::Basic;
 }
 
 Properties GBufferBase::getProperties() const
@@ -86,7 +92,8 @@ Properties GBufferBase::getProperties() const
     if (mOutputSizeSelection == RenderPassHelpers::IOSize::Fixed) props[kFixedOutputSize] = mFixedOutputSize;
     props[kSamplePattern] = mSamplePattern;
     props[kSampleCount] = mSampleCount;
-    props[kUseAlphaTest] = mUseAlphaTest;
+    props[kUseAlphaTest] = mAlphaTestMode != AlphaTestMode::Disabled;
+    props[kAlphaTestMode] = mAlphaTestMode;
     props[kAdjustShadingNormals] = mAdjustShadingNormals;
     props[kForceCullMode] = mForceCullMode;
     props[kCullMode] = mCullMode;
@@ -121,7 +128,8 @@ void GBufferBase::renderUI(Gui::Widgets& widget)
     }
 
     // Misc controls.
-    mOptionsChanged |=  widget.checkbox("Alpha Test", mUseAlphaTest);
+    //mOptionsChanged |=  widget.checkbox("Alpha Test", mUseAlphaTest);
+    mOptionsChanged |= widget.dropdown("Alpha Test", mAlphaTestMode);
     widget.tooltip("Use alpha testing on non-opaque triangles.");
 
     mOptionsChanged |= widget.checkbox("Adjust shading normals", mAdjustShadingNormals);
@@ -233,4 +241,10 @@ ref<Texture> GBufferBase::getOutput(const RenderData& renderData, const std::str
         throw RuntimeError("GBufferBase: Pass output '{}' has mismatching size. All outputs must be of the same size.", name);
     }
     return pTex;
+}
+
+void GBufferBase::setAlphaTestDefines(Program& program) const
+{
+    program.addDefine("USE_ALPHA_TEST", mAlphaTestMode != AlphaTestMode::Disabled ? "1" : "0");
+    program.addDefine("_ALPHA_TEST_MODE", std::to_string((uint32_t)mAlphaTestMode));
 }

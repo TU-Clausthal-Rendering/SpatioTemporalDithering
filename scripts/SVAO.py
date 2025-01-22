@@ -3,7 +3,7 @@ from falcor import *
 
 def render_graph_SVAO():
     g = RenderGraph('SVAO')
-    g.create_pass('GBufferRaster', 'GBufferRaster', {'outputSize': 'Default', 'samplePattern': 'DirectX', 'sampleCount': 8, 'useAlphaTest': True, 'adjustShadingNormals': True, 'forceCullMode': False, 'cull': 'Back', 'textureLodBias': 0.0})
+    g.create_pass('GBufferRaster', 'GBufferRaster', {'outputSize': 'Default', 'samplePattern': 'DirectX', 'sampleCount': 8, 'useAlphaTest': True, 'alphaTestMode': 'Hashed Isotropic', 'adjustShadingNormals': True, 'forceCullMode': False, 'cull': 'Back', 'textureLodBias': 0.0})
     g.create_pass('LinearizeDepth', 'LinearizeDepth', {'depthFormat': 'R32Float'})
     g.create_pass('RayShadow', 'RayShadow', {})
     g.create_pass('DepthPeeling', 'DepthPeeling', {'cullMode': 'Back', 'depthFormat': 'D32Float', 'minSeparationDistance': 0.009999999776482582})
@@ -23,7 +23,7 @@ def render_graph_SVAO():
     g.create_pass('PathBenchmark', 'PathBenchmark', {})
     g.create_pass('VideoRecorder', 'VideoRecorder', {})
     g.create_pass('LinearizeDepth0', 'LinearizeDepth', {'depthFormat': 'R32Float'})
-    g.create_pass('DiffuseDLSS', 'DLSSPass', {'enabled': True, 'outputSize': 'Default', 'profile': 'Balanced', 'motionVectorScale': 'Relative', 'isHDR': True, 'sharpness': 0.0, 'exposure': 0.0})
+    g.create_pass('DiffuseDLSS', 'DLSSPass', {'enabled': True, 'outputSize': 'Default', 'profile': 'Balanced', 'motionVectorScale': 'Relative', 'isHDR': True, 'useJitteredMV': False, 'sharpness': 0.3499999940395355, 'exposure': 0.0})
     g.create_pass('SMAA', 'SMAA', {})
     g.create_pass('DecimaTAA', 'DecimaTAA', {})
     g.add_edge('GBufferRaster.posW', 'RayShadow.posW')
