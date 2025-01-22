@@ -35,8 +35,9 @@ float roughnessToIntensity(float roughness)
 float4 psMain(VSOut vsOut, uint triangleIndex : SV_PrimitiveID) : SV_TARGET
 {
     let lod = ImplicitLodTextureSampler(gLodBias);
-    if (alphaTest(vsOut, triangleIndex, lod))
-        discard;
+    // assume alpha test is done by gbuffer
+    //if (alphaTest(vsOut, triangleIndex, lod))
+    //    discard;
 
     uint2 pixel = uint2(vsOut.posH.xy);
 

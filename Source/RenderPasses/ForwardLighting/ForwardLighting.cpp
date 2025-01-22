@@ -55,7 +55,7 @@ ForwardLighting::ForwardLighting(ref<Device> pDevice) : RenderPass(std::move(pDe
     mpFbo = Fbo::create(mpDevice);
 
     DepthStencilState::Desc dsDesc;
-    dsDesc.setDepthWriteMask(false).setDepthFunc(DepthStencilState::Func::LessEqual);
+    dsDesc.setDepthWriteMask(false).setDepthFunc(DepthStencilState::Func::Equal);
     mpDsNoDepthWrite = DepthStencilState::create(dsDesc);
     mpState->setDepthStencilState(mpDsNoDepthWrite);
 }
