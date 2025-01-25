@@ -92,5 +92,5 @@ void rayGen()
     Ray ray = gScene.camera.computeRayPinhole(pixel, frameDim);
 
     RayData dummy; // dummy payload
-    TraceRay(gScene.rtAccel, RAY_FLAG_NONE, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), dummy);
+    TraceRay(gScene.rtAccel, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), dummy);
 }

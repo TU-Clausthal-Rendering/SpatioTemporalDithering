@@ -14,6 +14,9 @@ cbuffer ConstantCB
 {
     float gAmbientIntensity;
     float gEnvMapIntensity;
+    float gLightIntensity;
+    bool gEnvMapMirror;
+    float gLodBias; // user lower LOD to prevent blur from TAA
 };
 
 float roughnessToLod(float roughness)
@@ -101,8 +104,6 @@ float4 main(float2 texC : TEXCOORD, float4 svPos : SV_POSITION) : SV_TARGET
 
         // Create material instance at shading point.
         let mi = gScene.materials.getMaterialInstance(sd, lod, (uint) MaterialInstanceHints::AdjustShadingNormal);
-    
-        // Create material instance.
         let bsdf = mi.getProperties(sd);
     
         // emission
@@ -116,10 +117,9 @@ float4 main(float2 texC : TEXCOORD, float4 svPos : SV_POSITION) : SV_TARGET
         float envMaxIntensity = roughnessToIntensity(bsdf.roughness);
         float F = evalFresnelSchlick(0.3, 1.0, max(0.0, dot(viewDir, bsdf.guideNormal)));
         color += gEnvMapIntensity * bsdf.diffuseReflectionAlbedo * min(gScene.envMap.eval(lerp(sd.frame.N, sd.faceN, 0.8), diffLod), 1.0);
-        color += F * gEnvMapIntensity * bsdf.specularReflectionAlbedo * min(gScene.envMap.eval(R, specLod), envMaxIntensity);
-
+        color +=  gEnvMapIntensity * bsdf.specularReflectionAlbedo * min(gScene.envMap.eval(R, specLod), envMaxIntensity);
         // perfect mirror
-        if(bsdf.roughness < 0.08)
+        if (gEnvMapMirror && bsdf.roughness < 0.08)
             color += F * gScene.envMap.eval(R, specLod);
         
         TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(pixel, 0);
@@ -134,22 +134,13 @@ float4 main(float2 texC : TEXCOORD, float4 svPos : SV_POSITION) : SV_TARGET
             //    shadow = visibilityBuffer[pixel];
 
         
-            color += shadow * mi.eval(sd, ls.dir, sg) * ls.Li;
-        
+            color += shadow * mi.eval(sd, ls.dir, sg) * ls.Li * gLightIntensity;  
         }
 
         return float4(color, 1.f);
     }
     else // invalid hit => envmap
     {
-        // get camera ray from pixel
-        /*let data = gScene.camera.data;
-        float2 ndc = float2(2, -2) * texC + float2(-1, 1);
-        float3 dir = ndc.x * data.cameraU + ndc.y * data.cameraV + data.cameraW;
-        dir = normalize(dir);
-
-        // lookup dir in envmap
-        color = gScene.envMap.eval(dir) * gEnvMapIntensity;*/
         color = gScene.envMap.eval(-viewDir) * gEnvMapIntensity;
     }
     return float4(color, 1.f);

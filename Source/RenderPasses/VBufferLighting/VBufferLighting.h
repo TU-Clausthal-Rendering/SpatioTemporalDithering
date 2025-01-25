@@ -58,8 +58,10 @@ private:
     
     ref<Scene> mpScene;
 
-    float mEnvMapIntensity = 1.0f;
-    float mAmbientIntensity = 1.0f;
+    float mEnvMapIntensity = 0.25f;
+    float mAmbientIntensity = 0.25f;
+    float mLightIntensity = 0.5f;
+    bool mEnvMapMirror = false;
 
     bool mDirty = true;
 };

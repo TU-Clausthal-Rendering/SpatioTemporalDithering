@@ -38,6 +38,8 @@ namespace
 
     const std::string kAmbientIntensity = "ambientIntensity";
     const std::string kEnvMapIntensity = "envMapIntensity";
+    const std::string kLightIntensity = "lightIntensity";
+    const std::string kEnvMapMirror = "envMapMirror";
 }
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
@@ -57,6 +59,8 @@ VBufferLighting::VBufferLighting(ref<Device> pDevice, const Properties& props)
     {
         if (key == kEnvMapIntensity) mEnvMapIntensity = value;
         else if (key == kAmbientIntensity) mAmbientIntensity = value;
+        else if (key == kLightIntensity) mLightIntensity = value;
+        else if (key == kEnvMapMirror) mEnvMapMirror = value;
         else logWarning("Unknown field '{}' in a VBufferLighting dictionary.", key);
     }
 
@@ -69,6 +73,8 @@ Properties VBufferLighting::getProperties() const
     Properties d;
     d[kEnvMapIntensity] = mEnvMapIntensity;
     d[kAmbientIntensity] = mAmbientIntensity;
+    d[kLightIntensity] = mLightIntensity;
+    d[kEnvMapMirror] = mEnvMapMirror;
     return d;
 }
 
@@ -102,6 +108,8 @@ void VBufferLighting::execute(RenderContext* pRenderContext, const RenderData& r
     {
         vars["ConstantCB"]["gAmbientIntensity"] = mAmbientIntensity;
         vars["ConstantCB"]["gEnvMapIntensity"] = mEnvMapIntensity;
+        vars["ConstantCB"]["gLightIntensity"] = mLightIntensity;
+        vars["ConstantCB"]["gEnvMapMirror"] = mEnvMapMirror;
         mDirty = false;
     }
 
@@ -114,6 +122,8 @@ void VBufferLighting::renderUI(Gui::Widgets& widget)
 {
     if (widget.var("Ambient Intensity", mAmbientIntensity, 0.f, 100.f, 0.1f)) mDirty = true;
     if (widget.var("Env Map Intensity", mEnvMapIntensity, 0.f, 100.f, 0.1f)) mDirty = true;
+    if (widget.var("Scene Light Intensity", mLightIntensity, 0.f, 100.f, 0.1f)) mDirty = true;
+    if (widget.checkbox("Env Map Mirror Reflections", mEnvMapMirror)) mDirty = true;
 }
 
 void VBufferLighting::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene)
