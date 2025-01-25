@@ -32,8 +32,7 @@ float roughnessToIntensity(float roughness)
     return saturate(1.0 / (roughness + 0.1));
 }
 
-    /** Ray differentials for primary hit. Code from RayTracingGems, Chapter 20.
-    */
+/** Ray differentials for primary hit. Code from RayTracingGems, Chapter 20. */
 void computeRayDifferentials(const TriangleHit hit, float3 rayDir, float hitT, const Camera camera, float2 frameDim, out float2 ddx, out float2 ddy)
 {
     // Ray differentials
