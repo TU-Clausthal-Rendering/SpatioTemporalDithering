@@ -54,10 +54,13 @@ public:
 
     virtual float2 next() override { return kPattern[(mCurSample++) % kSampleCount]; }
 
+    uint32_t getCurSample() const { return mCurSample % kSampleCount; }
+
 protected:
     uint32_t mCurSample = 0;
     uint32_t kSampleCount = 0;
     const float2* kPattern = nullptr;
+    static const float2 kPattern16x[16];
     static const float2 kPattern8x[8];
     static const float2 kPattern4x[4];
     static const float2 kPattern2x[2];

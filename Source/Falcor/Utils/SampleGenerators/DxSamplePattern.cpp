@@ -30,6 +30,27 @@
 
 namespace Falcor
 {
+// https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ne-d3d11-d3d11_standard_multisample_quality_levels
+// adjusted to patterns in [-0.5, 0.5]
+const float2 DxSamplePattern::kPattern16x[] = {
+    { 1.0f / 16.0f,  1.0f / 16.0f},
+    {-1.0f / 16.0f, -3.0f / 16.0f},
+    {-3.0f / 16.0f,  2.0f / 16.0f},
+    { 4.0f / 16.0f, -1.0f / 16.0f},
+    {-5.0f / 16.0f, -2.0f / 16.0f},
+    { 2.0f / 16.0f,  5.0f / 16.0f},
+    { 5.0f / 16.0f,  3.0f / 16.0f},
+    { 3.0f / 16.0f, -5.0f / 16.0f},
+    {-2.0f / 16.0f,  6.0f / 16.0f},
+    { 0.0f / 16.0f, -7.0f / 16.0f},
+    {-4.0f / 16.0f, -6.0f / 16.0f},
+    {-6.0f / 16.0f,  4.0f / 16.0f},
+    {-8.0f / 16.0f,  0.0f / 16.0f},
+    { 7.0f / 16.0f, -4.0f / 16.0f},
+    { 6.0f / 16.0f,  7.0f / 16.0f},
+    {-7.0f / 16.0f, -8.0f / 16.0f},
+};
+
 const float2 DxSamplePattern::kPattern8x[] = {
     // clang-format off
     { 1.0f / 16.0f, -3.0f / 16.0f},
@@ -44,25 +65,16 @@ const float2 DxSamplePattern::kPattern8x[] = {
 };
 
 const float2 DxSamplePattern::kPattern2x[] = {
-    { 0.25f, -0.25f}, 
-    {-0.25f, 0.25f}, 
+    { 0.25f, 0.25f}, 
+    {-0.25f, -0.25f}, 
 };
-
-/*const float2 DxSamplePattern::kPattern4x[] = {
-    {0.375f, -0.125f},  
-     {-0.125f, 0.375f},  
-    {0.1250f, -0.375f}, 
-     {-0.375, 0.125f}, 
-};*/
 
 const float2 DxSamplePattern::kPattern4x[] = {
-    {0.375f, 0.125f},
-     {-0.125f, 0.375f},
-    {0.1250f, -0.375f},
-     {-0.375, -0.125f},
+    {-0.125f, -0.375f},
+    {0.375f, -0.125f},
+    {-0.375, 0.125f},
+    {0.1250f, 0.375f}
 };
-
-
 
 DxSamplePattern::DxSamplePattern(uint32_t sampleCount)
 {
@@ -74,6 +86,10 @@ DxSamplePattern::DxSamplePattern(uint32_t sampleCount)
     else if(sampleCount == 4)
     {
         kPattern = kPattern4x;
+    }
+    else if(sampleCount == 16)
+    {
+        kPattern = kPattern16x;
     }
     else
     {
