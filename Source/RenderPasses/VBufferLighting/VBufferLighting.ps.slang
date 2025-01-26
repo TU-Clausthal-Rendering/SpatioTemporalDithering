@@ -6,7 +6,7 @@ import Utils.Math.MathHelpers;
 import Scene.Intersection;
 import Rendering.Materials.Fresnel;
 
-Texture2D<float> visibilityBuffer;
+Texture2DArray<float> visibilityBuffer;
 Texture2D<PackedHitInfo> vbuffer;
 Texture2D<float4> rayDir;
 
@@ -123,14 +123,18 @@ float4 main(float2 texC : TEXCOORD, float4 svPos : SV_POSITION) : SV_TARGET
         
         TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(pixel, 0);
 
+        uint visWidth, visHeight, visSlices;
+        visibilityBuffer.GetDimensions(visWidth, visHeight, visSlices);
+    
+
         // Direct lighting from analytic light sources
         for (int i = 0; i < gScene.getLightCount(); i++)
         {
             AnalyticLightSample ls;
             evalLightApproximate(sd.posW, gScene.getLight(i), ls);
             float shadow = 1.0;
-            //if (i == 0)
-            //    shadow = visibilityBuffer[pixel];
+            if(i < visSlices)
+                shadow = visibilityBuffer[uint3(pixel, i)];
 
         
             color += shadow * mi.eval(sd, ls.dir, sg) * ls.Li * gLightIntensity;  

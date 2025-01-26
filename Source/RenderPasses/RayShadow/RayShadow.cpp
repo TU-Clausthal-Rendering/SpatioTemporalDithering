@@ -131,6 +131,7 @@ void RayShadow::execute(RenderContext* pRenderContext, const RenderData& renderD
     auto nLights = std::min(mLightCount, (int)mpScene->getLightCount());
     for(int i = 0; i < nLights; i++)
     {
+        if (!mpScene->getLight(i)->isActive()) continue;
         var["PerLightBuffer"]["gLightIndex"] = i;
         mpFbo->attachColorTarget(pVisibility, 0, 0, i, 1);
         mpPass->execute(pRenderContext, mpFbo);
