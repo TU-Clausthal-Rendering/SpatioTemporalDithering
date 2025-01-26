@@ -67,12 +67,16 @@ public:
 
 private:
     void setupProgram();
+    void createStratifiedBuffers();
 
     ref<Scene> mpScene;
 
     ref<RtProgram> mpProgram;
     ref<RtProgramVars> mpVars;
     ref<SampleGenerator> mpSampleGenerator;
+    ref<Buffer> mpStratifiedIndices;
+    ref<Buffer> mpStratifiedLookUpBuffer;
+
     uint mFrameCount = 0;
 
     ref<HaltonSamplePattern> mpSamplePattern;

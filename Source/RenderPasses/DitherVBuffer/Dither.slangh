@@ -7,6 +7,44 @@
 #define DITHER_MODE DITHER_MODE_DISABLED
 #endif
 
+StructuredBuffer<uint> gStratifiedIndices;
+StructuredBuffer<uint> gStratifiedLookUpTable;
+
+// Hash function from "Improved Alpha Testing Using Hashed Sampling"
+float hash(float2 v)
+{
+    return frac(1.0e4 * sin(17.0 * v.x + 0.1 * v.y) * (0.1 + abs(sin(13.0 * v.y + v.x))));
+}
+
+// 3D hash function from "Improved Alpha Testing Using Hashed Sampling"
+float hash3D(float3 v)
+{
+    return hash(float2(hash(v.xy), v.z));
+}
+
+// 4D hash function based on the 3D hash function
+float hash4D(float4 v)
+{
+    return hash(float2(hash3D(v.xyz), v.w));
+}
+
+bool isCovered(uint2 pixel, float alpha, uint sampleIndex, uint sampleCount)
+{
+    //float rng = hash(float2(pixel));
+    float rng = 0.5; // TODO should be a varying value
+    int R = int(floor(alpha * sampleCount + rng));
+    if(R >= sampleCount) return true;
+    //float rng2 = hash(float2(pixel));
+    float rng2 = hash3D(float3(pixel, InstanceID() + GeometryIndex() + PrimitiveIndex() / 2u));
+    //float rng2 = frac(float(InstanceID() + GeometryIndex() + PrimitiveIndex() / 2u) * 561.573179835986);
+    //float rng2 = 0.5;
+    int index = int(lerp(gStratifiedIndices[R], gStratifiedIndices[R + 1], rng2));
+    uint mask = gStratifiedLookUpTable[index];
+    
+    if(mask & (1u << sampleIndex)) return true;
+    return false;
+}
+
 float getPixelDitherThreshold(uint2 pixel)
 {
     // use random offset to ensure that each primitive uses a different mask

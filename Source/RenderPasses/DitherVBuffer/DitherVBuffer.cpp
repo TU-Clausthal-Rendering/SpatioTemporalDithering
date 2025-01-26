@@ -26,6 +26,7 @@
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
 #include "DitherVBuffer.h"
+#include "DitherLookup.h"
 
 namespace
 {
@@ -47,6 +48,7 @@ DitherVBuffer::DitherVBuffer(ref<Device> pDevice, const Properties& props)
 {
     mpSampleGenerator = SampleGenerator::create(mpDevice, SAMPLE_GENERATOR_UNIFORM);
     mpSamplePattern = HaltonSamplePattern::create(8);
+    createStratifiedBuffers();
 }
 
 Properties DitherVBuffer::getProperties() const
@@ -81,7 +83,12 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     var["gVBuffer"] = pVbuffer;
     var["gMotion"] = pMotion;
     var["gDepth"] = pDepth;
+    var["gStratifiedIndices"] = mpStratifiedIndices;
+    var["gStratifiedLookUpTable"] = mpStratifiedLookUpBuffer;
+
     var["PerFrame"]["gFrameCount"] = mFrameCount++;
+    var["PerFrame"]["gSampleCount"] = mpSamplePattern->getSampleCount();
+    var["PerFrame"]["gSampleIndex"] = mpSamplePattern->getCurSample();
 
     mpProgram->addDefine("DITHER_MODE", std::to_string(uint32_t(mDitherMode)));
 
@@ -94,9 +101,10 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
 void DitherVBuffer::renderUI(Gui::Widgets& widget)
 {
     auto sampleCount = mpSamplePattern->getSampleCount();
-    if(widget.var("Sample Count", sampleCount, 1u))
+    if(widget.var("Sample Count", sampleCount, 1u, 16u)) // sizes > 16 generate too much possible combinations for the dither pattern (per jitter)
     {
         mpSamplePattern->setSampleCount(sampleCount);
+        createStratifiedBuffers();
     }
     widget.dropdown("Dither", mDitherMode);
 }
@@ -134,4 +142,14 @@ void DitherVBuffer::setupProgram()
     // Bind static resources.
     ShaderVar var = mpVars->getRootVar();
     mpSampleGenerator->setShaderData(var);
+}
+
+void DitherVBuffer::createStratifiedBuffers()
+{
+    std::vector<int> indices;
+    std::vector<uint32_t> lookUpTable;
+    generateStratifiedLookupTable(mpSamplePattern->getSampleCount(), indices, lookUpTable);
+
+    mpStratifiedIndices = Buffer::createStructured(mpDevice, sizeof(indices[0]), uint32_t(indices.size()), ResourceBindFlags::ShaderResource, Buffer::CpuAccess::None, indices.data(), false);
+    mpStratifiedLookUpBuffer = Buffer::createStructured(mpDevice, sizeof(lookUpTable[0]), uint32_t(lookUpTable.size()), ResourceBindFlags::ShaderResource, Buffer::CpuAccess::None, lookUpTable.data(), false);
 }

@@ -15,6 +15,8 @@ import Utils.Color.ColorHelpers;
 cbuffer PerFrame
 {
     uint gFrameCount;       // Frame count since scene was loaded.
+    uint gSampleCount;      // Sample count per pixel.
+    uint gSampleIndex;      // looped jitter sequence sample index
 }
 
 RWTexture2D<PackedHitInfo> gVBuffer;
@@ -68,7 +70,7 @@ void miss(inout RayData rayData : SV_RayPayload)
     HitInfo hitInfo = { };
     gVBuffer[pixel] = hitInfo.getData();
     // TODO calclate proper motion vectors for environment
-    gMotion[pixel] = float2(100.0, 100.0); // use large motion vectors to prevent reprojection (invalidate history)
+    gMotion[pixel] = 0.0;
     gDepth[pixel] = 1.0;
 }
 
@@ -100,6 +102,12 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     let material = gScene.materials.getMaterial(materialID);
     float alpha = material.evalOpacity(gScene.materials, v, lod);
     if (alpha < getPixelDitherThreshold(pixel))
+        IgnoreHit();
+    #endif
+    #if DITHER_MODE == DITHER_MODE_PER_JITTER
+    let material = gScene.materials.getMaterial(materialID);
+    float alpha = material.evalOpacity(gScene.materials, v, lod);
+    if(!isCovered(pixel, alpha, gSampleIndex, gSampleCount))
         IgnoreHit();
     #endif
 }
