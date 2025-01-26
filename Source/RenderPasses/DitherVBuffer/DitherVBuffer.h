@@ -28,6 +28,7 @@
 #pragma once
 #include "Falcor.h"
 #include "RenderGraph/RenderPass.h"
+#include "Utils/SampleGenerators/HaltonSamplePattern.h"
 
 using namespace Falcor;
 
@@ -59,4 +60,7 @@ private:
     ref<SampleGenerator> mpSampleGenerator;
     uint mFrameCount = 0;
 
+    ref<HaltonSamplePattern> mpSamplePattern;
 };
+
+//FALCOR_ENUM_REGISTER(DitherVBuffer::SamplePattern);

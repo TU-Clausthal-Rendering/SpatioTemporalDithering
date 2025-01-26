@@ -51,6 +51,10 @@ public:
 
     virtual float2 next() override;
 
+    uint32_t getCurSample() const { return mCurSample; }
+
+    void setSampleCount(uint32_t sampleCount);
+
 protected:
     uint32_t mCurSample = 0;
     uint32_t mSampleCount;

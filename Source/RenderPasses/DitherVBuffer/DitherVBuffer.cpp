@@ -46,6 +46,7 @@ DitherVBuffer::DitherVBuffer(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
     mpSampleGenerator = SampleGenerator::create(mpDevice, SAMPLE_GENERATOR_UNIFORM);
+    mpSamplePattern = HaltonSamplePattern::create(8);
 }
 
 Properties DitherVBuffer::getProperties() const
@@ -73,6 +74,9 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     auto pMotion = renderData.getTexture(kMotion);
     auto pDepth = renderData.getTexture(kDepth);
 
+    uint2 frameDim = uint2(pVbuffer->getWidth(), pVbuffer->getHeight());
+    mpScene->getCamera()->setPatternGenerator(mpSamplePattern, 1.0f / float2(frameDim));
+
     auto var = mpVars->getRootVar();
     var["gVBuffer"] = pVbuffer;
     var["gMotion"] = pMotion;
@@ -87,7 +91,11 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
 
 void DitherVBuffer::renderUI(Gui::Widgets& widget)
 {
-
+    auto sampleCount = mpSamplePattern->getSampleCount();
+    if(widget.var("Sample Count", sampleCount, 1u))
+    {
+        mpSamplePattern->setSampleCount(sampleCount);
+    }
 }
 
 void DitherVBuffer::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene)

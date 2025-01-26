@@ -72,4 +72,13 @@ float2 HaltonSamplePattern::next()
     // Map the result so that [0, 1) maps to [-0.5, 0.5) and 0 maps to the origin.
     return math::frac(value + 0.5f) - 0.5f;
 }
+
+void HaltonSamplePattern::setSampleCount(uint32_t sampleCount)
+{
+    mSampleCount = sampleCount;
+    if(mSampleCount != 0)
+    {
+        mCurSample = mCurSample % sampleCount;
+    }
+}
 } // namespace Falcor
