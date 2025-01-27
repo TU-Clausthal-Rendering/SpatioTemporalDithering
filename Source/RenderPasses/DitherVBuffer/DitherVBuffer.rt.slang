@@ -99,7 +99,7 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     GeometryInstanceID instanceID = getGeometryInstanceID();
     VertexData v = getVertexData(instanceID, PrimitiveIndex(), attribs);
     uint materialID = gScene.getMaterialID(instanceID);
-    
+    //if(materialID < 111) IgnoreHit();
     // lod
     #if ALPHA_TEXTURE_LOD != 0
     TriangleHit triangleHit;
@@ -124,9 +124,9 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_PER_JITTER
-    let material = gScene.materials.getMaterial(materialID);
+    let material = gScene.materials.getMaterial(materialID);   
     float alpha = material.evalOpacity(gScene.materials, v, lod);
-    if(!isCovered(pixel, alpha, gSampleIndex, gSampleCount))
+    if(!isCovered(pixel, alpha, gSampleIndex, gSampleCount, gFrameCount, v.posW))
         IgnoreHit();
     #endif
 }
@@ -165,5 +165,6 @@ void rayGen()
 
     RayData data;
     data.RayTMax = ray.tMax;
+    //TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_NON_OPAQUE | RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
     TraceRay(gScene.rtAccel, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
 }
