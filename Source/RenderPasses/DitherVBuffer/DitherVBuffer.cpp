@@ -47,7 +47,7 @@ DitherVBuffer::DitherVBuffer(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
     mpSampleGenerator = SampleGenerator::create(mpDevice, SAMPLE_GENERATOR_UNIFORM);
-    mpSamplePattern = HaltonSamplePattern::create(8);
+    mpSamplePattern = HaltonSamplePattern::create(16);
     createStratifiedBuffers();
 }
 

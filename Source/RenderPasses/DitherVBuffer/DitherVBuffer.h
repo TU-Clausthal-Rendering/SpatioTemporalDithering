@@ -80,7 +80,7 @@ private:
     uint mFrameCount = 0;
 
     ref<HaltonSamplePattern> mpSamplePattern;
-    DitherMode mDitherMode = DitherMode::Disabled;
+    DitherMode mDitherMode = DitherMode::PerJitter;
 };
 
 FALCOR_ENUM_REGISTER(DitherVBuffer::DitherMode);

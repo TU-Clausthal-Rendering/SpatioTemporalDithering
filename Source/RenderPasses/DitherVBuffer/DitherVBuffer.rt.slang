@@ -61,6 +61,15 @@ void computeRayDifferentials(const TriangleHit hit, float3 rayDir, float hitT, c
     ddy = float2(dsdy, dtdy);
 }
 
+// posV: view space position (negative z)
+// return: texture uv [0, 1]
+float2 ViewSpaceToUV(float3 posV)
+{
+    const float2 imageScale = 0.5 * float2(gScene.camera.data.frameWidth / gScene.camera.data.focalLength, gScene.camera.data.frameHeight / gScene.camera.data.focalLength);
+    float2 ndc = posV.xy / (imageScale * posV.z);
+    return ndc * float2(-0.5, 0.5) + 0.5; // since posV.z is negative, the sign order is inversed
+}
+
 [shader("miss")]
 void miss(inout RayData rayData : SV_RayPayload)
 {
@@ -69,8 +78,10 @@ void miss(inout RayData rayData : SV_RayPayload)
 
     HitInfo hitInfo = { };
     gVBuffer[pixel] = hitInfo.getData();
-    // TODO calclate proper motion vectors for environment
-    gMotion[pixel] = 0.0;
+    float3 rayDirNoJitter = gScene.camera.computeRayPinhole(pixel, frameDim, /*no jitter*/false).dir;
+    float3 prevEnvMapDir = mul(gScene.camera.data.prevViewMat, float4(rayDirNoJitter, 0.0)).xyz;
+    float2 prevUV = ViewSpaceToUV(prevEnvMapDir);
+    gMotion[pixel] = prevUV - (float2(pixel)+0.5) / float2(frameDim);
     gDepth[pixel] = 1.0;
 }
 
