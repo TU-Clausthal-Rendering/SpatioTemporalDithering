@@ -37,22 +37,6 @@ class RayShadow : public RenderPass
 public:
     FALCOR_PLUGIN_CLASS(RayShadow, "RayShadow", "Calculates a raytraced visibility map for the first light (only directional lights)");
 
-    enum class RayConeShadow
-    {
-        Raw,
-        AlphaTest,
-        Saturated
-    };
-
-    FALCOR_ENUM_INFO(
-        RayConeShadow,
-        {
-            { RayConeShadow::Raw, "Raw" },
-            { RayConeShadow::AlphaTest, "AlphaTest" },
-            { RayConeShadow::Saturated, "Saturated" },
-        }
-    );
-
     /** Create a new render pass object.
         \param[in] pDevice GPU device.
         \param[in] dict Properties of serialized parameters.
@@ -71,11 +55,7 @@ public:
     RayShadow(ref<Device> pDevice);
 private:
     int mLightCount = 1;
-    float mPointLightClip = 0.2f;
-    bool mRayCones = true;
-    bool mDiminishBorder = true;
-    float mLodBias = 0.0f;
-    RayConeShadow mRayConeShadow = RayConeShadow::Saturated; // fastest
+    
 
     ref<FullScreenPass> mpPass;
 
@@ -83,8 +63,4 @@ private:
     ref<Fbo> mpFbo;
 
     uint2 mInputSize = uint2(0);
-
-    ref<Sampler> mpSampler;
 };
-
-FALCOR_ENUM_REGISTER(RayShadow::RayConeShadow);
