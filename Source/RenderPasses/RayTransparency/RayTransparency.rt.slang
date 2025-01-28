@@ -1,5 +1,6 @@
 #include "Scene/SceneDefines.slangh"
 #include "Utils/Math/MathConstants.slangh"
+#include "Scene/Lighting/Lighting.slangh"
 
 import Scene.Raytracing;
 import Scene.Intersection;
@@ -14,6 +15,8 @@ import Utils.Color.ColorHelpers;
 #define ALPHA_TEXTURE_LOD 0
 #endif
 
+#define MIN_VISIBILITY 0.001
+
 cbuffer PerFrame
 {
     uint gFrameCount;       // Frame count since scene was loaded.
@@ -27,41 +30,8 @@ RWTexture2D<float4> gTransparent; // rgba transparent color
 struct RayData
 {
     float4 color;
-    float RayTMax;
+    float rayT; // input: TMax, output: TCurrent
 };
-
-void computeRayDifferentials(const TriangleHit hit, float3 rayDir, float hitT, const Camera camera, float2 frameDim, out float2 ddx, out float2 ddy)
-{
-    // Ray differentials
-    float3 P[3];
-    gScene.getVertexPositionsW(hit.instanceID, hit.primitiveIndex, P);
-    float3 e1 = P[1] - P[0];
-    float3 e2 = P[2] - P[0];
-    float3 d = rayDir;
-    float k = dot(cross(e1, e2), d);
-    k = abs(k) > 1e-20f ? rcp(k) : 0.0f;
-    float3 cu = cross(e2, d);
-    float3 cv = cross(d, e1);
-        // Assumes a normalized ray direction
-    float3 dx = camera.data.cameraU * 2.f / (camera.data.focalDistance * frameDim.x); // dDdx in ray gen
-    float3 dy = camera.data.cameraV * 2.f / (camera.data.focalDistance * frameDim.y); // dDdy in ray gen
-    float3 q = dx * hitT; // Transfer to primary hit
-    float3 r = dy * hitT;
-    float dudx = k * dot(cu, q);
-    float dudy = k * dot(cu, r);
-    float dvdx = k * dot(cv, q);
-    float dvdy = k * dot(cv, r);
-    float2 T[3];
-    gScene.getVertexTexCoords(hit.instanceID, hit.primitiveIndex, T);
-    float2 g1 = T[1] - T[0];
-    float2 g2 = T[2] - T[0];
-    float dsdx = (dudx * g1.x + dvdx * g2.x);
-    float dsdy = (dudy * g1.x + dvdy * g2.x);
-    float dtdx = (dudx * g1.y + dvdx * g2.y);
-    float dtdy = (dudy * g1.y + dvdy * g2.y);
-    ddx = float2(dsdx, dtdx);
-    ddy = float2(dsdy, dtdy);
-}
 
 // posV: view space position (negative z)
 // return: texture uv [0, 1]
@@ -125,19 +95,54 @@ float2 calcMotionVector(uint2 pixel, uint2 frameDim, TriangleHit triangleHit)
     return calcMotionVector(pixelPos, prevPosH, frameDim) + float2(gScene.camera.data.jitterX, -gScene.camera.data.jitterY); // Remove camera jitter from motion vector
 }
 
+float computeShadowImpl(uint2 pixel, uint lightIndex, AnalyticLightSample ls)
+{
+    return 1.0;
+}
+
 [shader("closesthit")]
 void closestHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAttributes attribs : SV_IntersectionAttributes){
     uint2 pixel = DispatchRaysIndex().xy;
-    uint2 frameDim = DispatchRaysDimensions().xy;    
-
+    uint2 frameDim = DispatchRaysDimensions().xy;  
+    
     TriangleHit triangleHit;
     triangleHit.instanceID = getGeometryInstanceID();
     triangleHit.primitiveIndex = PrimitiveIndex();
     triangleHit.barycentrics = attribs.barycentrics;
-    
-    gVBuffer[pixel] = HitInfo(triangleHit).getData();
-    gMotion[pixel] = calcMotionVector(pixel, frameDim, triangleHit);
-    gDepth[pixel] = RayTCurrent() / rayData.RayTMax; // 0-1 range
+
+    // lod
+    #if ALPHA_TEXTURE_LOD != 0
+    float2 ddx, ddy;
+    computeRayDifferentials(triangleHit, WorldRayDirection(), RayTCurrent(), gScene.camera, float2(frameDim), ddx, ddy);
+    let lod = ExplicitGradientTextureSampler(ddx, ddy);
+    #else
+    let lod = ExplicitLodTextureSampler(0.0);
+    #endif  
+
+    // eval alpha to decide wheter transparent hit or final vbuffer entry (opaque)
+    GeometryInstanceID instanceID = getGeometryInstanceID();
+    VertexData v = getVertexData(instanceID, PrimitiveIndex(), attribs);
+    uint materialID = gScene.getMaterialID(instanceID);
+    let material = gScene.materials.getMaterial(materialID);   
+    float alpha = material.evalOpacity(gScene.materials, v, lod);
+
+    float newVisibility = rayData.color.w * (1.0 - alpha);
+    if(newVisibility <= MIN_VISIBILITY)
+    {
+        // write to vbuffer (last entry)
+        rayData.color.w = rayData.color.w * alpha; // correct visibility to blend with the last object
+        // leave rayT as is, to stop ray
+        gVBuffer[pixel] = HitInfo(triangleHit).getData();
+        gMotion[pixel] = calcMotionVector(pixel, frameDim, triangleHit);
+        gDepth[pixel] = RayTCurrent() / rayData.rayT; // 0-1 range
+    }
+    else // full shading
+    {
+        rayData.color.rgb += rayData.color.w * alpha * shadeVBuffer(triangleHit, pixel, frameDim, -WorldRayDirection()).rgb;
+        rayData.rayT = RayTCurrent(); // continue ray here (if color.w > 0)
+        rayData.color.w = newVisibility;
+    }
+ 
 }
 
 [shader("raygeneration")]
@@ -149,7 +154,15 @@ void rayGen()
     Ray ray = gScene.camera.computeRayPinhole(pixel, frameDim);
 
     RayData data;
-    data.RayTMax = ray.tMax;
+    data.color = float4(0,0,0,1); // rgb+visibility
     //TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_NON_OPAQUE | RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
-    TraceRay(gScene.rtAccel, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
+    for(uint i = 0; i < 256; ++i)
+    {
+        data.rayT = ray.tMax; // overwrite with max t
+        TraceRay(gScene.rtAccel, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
+        ray.tMin = data.rayT; // set ray t from hitpoint to new start
+        if(data.color.w <= MIN_VISIBILITY || ray.tMin >= ray.tMax) break;
+    }
+    
+    gTransparent[pixel] = data.color;
 }

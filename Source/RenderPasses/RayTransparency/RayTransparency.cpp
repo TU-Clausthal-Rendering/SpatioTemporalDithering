@@ -36,7 +36,7 @@ namespace
     const std::string kTransparentColor = "transparent";
 
     const uint32_t kMaxPayloadSizeBytes = 5*4;
-    const std::string kProgramRaytraceFile = "RenderPasses/RayTransparency/Transparency.rt.slang";
+    const std::string kProgramRaytraceFile = "RenderPasses/RayTransparency/RayTransparency.rt.slang";
 }
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
@@ -86,6 +86,7 @@ void RayTransparency::execute(RenderContext* pRenderContext, const RenderData& r
     var["gMotion"] = pMotion;
     var["gDepth"] = pDepth;
     var["gTransparent"] = pTransparent;
+    LightSettings::get().updateShaderVar(var);
 
     var["PerFrame"]["gFrameCount"] = mFrameCount++;
     mpProgram->addDefine("ALPHA_TEXTURE_LOD", mUseAlphaTextureLOD ? "1" : "0");

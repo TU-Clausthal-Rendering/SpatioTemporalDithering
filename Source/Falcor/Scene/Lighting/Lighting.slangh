@@ -67,68 +67,67 @@ void computeRayDifferentials(const TriangleHit hit, float3 rayDir, float hitT, c
 
 float computeShadowImpl(uint2 pixel, uint lightIndex, AnalyticLightSample ls);
 
-float4 shadeVBuffer(HitInfo hit, uint2 pixel, uint2 frameDim, float3 viewDir)
+float4 shadeVBuffer(TriangleHit triangleHit, uint2 pixel, uint2 frameDim, float3 viewDir)
 {
     float3 color = 0.0;
+    let v = gScene.getVertexData(triangleHit);
+    let materialID = gScene.getMaterialID(triangleHit.instanceID);
+
+    // ray differentials: (Implicit does not work with vbuffer, because of different triangles per pixels)
+    float2 ddx, ddy;
+    float hitT = distance(v.posW, gScene.camera.data.posW);
+    computeRayDifferentials(triangleHit, -viewDir, hitT, gScene.camera, float2(frameDim), ddx, ddy);
+    let lod = ExplicitGradientTextureSampler(ddx, ddy);
+    //let lod = ImplicitLodTextureSampler();
+    //let lod = ExplicitLodTextureSampler(1000.0);
+        
+        
+    ShadingData sd = gScene.materials.prepareShadingData(v, materialID, viewDir, lod);
+
+    // Create material instance at shading point.
+    let mi = gScene.materials.getMaterialInstance(sd, lod, (uint) MaterialInstanceHints::AdjustShadingNormal);
+    let bsdf = mi.getProperties(sd);
+    
+    // emission
+    color = bsdf.emission;
+    // constant ambient term
+    color += gAmbientIntensity * bsdf.diffuseReflectionAlbedo;
+    // envmap ambient term
+    float3 R = reflect(-viewDir, bsdf.guideNormal);
+    float diffLod = roughnessToLod(bsdf.roughness * 2.0);
+    float specLod = roughnessToLod(bsdf.roughness);
+    float envMaxIntensity = roughnessToIntensity(bsdf.roughness);
+    float F = evalFresnelSchlick(0.3, 1.0, max(0.0, dot(viewDir, bsdf.guideNormal)));
+    color += gEnvMapIntensity * bsdf.diffuseReflectionAlbedo * min(gScene.envMap.eval(lerp(sd.frame.N, sd.faceN, 0.8), diffLod), 1.0);
+    color +=  gEnvMapIntensity * bsdf.specularReflectionAlbedo * min(gScene.envMap.eval(R, specLod), envMaxIntensity);
+    // perfect mirror
+    if (gEnvMapMirror && bsdf.roughness < 0.08)
+        color += F * gScene.envMap.eval(R, specLod);
+        
+    TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(pixel, 0);
+
+    // Direct lighting from analytic light sources
+    for (int i = 0; i < gScene.getLightCount(); i++)
+    {
+        AnalyticLightSample ls;
+        evalLightApproximate(sd.posW, gScene.getLight(i), ls);
+        float shadow = computeShadowImpl(pixel, i, ls);        
+        color += shadow * mi.eval(sd, ls.dir, sg) * ls.Li * gLightIntensity;  
+    }
+    return float4(color, 1.f);
+}
+
+float4 shadeVBuffer(HitInfo hit, uint2 pixel, uint2 frameDim, float3 viewDir)
+{
     if (hit.isValid()) // valid hit
     {
-        // Load shading data.
-        VertexData v = { };
-        uint materialID = { };
         if (hit.getType() != HitType::Triangle)
             return 0.0;
         
-        const TriangleHit triangleHit = hit.getTriangleHit();
-        v = gScene.getVertexData(triangleHit);
-        materialID = gScene.getMaterialID(triangleHit.instanceID);
-
-        // ray differentials: (Implicit does not work with vbuffer, because of different triangles per pixels)
-        float2 ddx, ddy;
-        float hitT = distance(v.posW, gScene.camera.data.posW);
-        computeRayDifferentials(triangleHit, -viewDir, hitT, gScene.camera, float2(frameDim), ddx, ddy);
-        let lod = ExplicitGradientTextureSampler(ddx, ddy);
-        //let lod = ImplicitLodTextureSampler();
-        //let lod = ExplicitLodTextureSampler(1000.0);
-        
-        
-        ShadingData sd = gScene.materials.prepareShadingData(v, materialID, viewDir, lod);
-
-        // Create material instance at shading point.
-        let mi = gScene.materials.getMaterialInstance(sd, lod, (uint) MaterialInstanceHints::AdjustShadingNormal);
-        let bsdf = mi.getProperties(sd);
-    
-        // emission
-        color = bsdf.emission;
-        // constant ambient term
-        color += gAmbientIntensity * bsdf.diffuseReflectionAlbedo;
-        // envmap ambient term
-        float3 R = reflect(-viewDir, bsdf.guideNormal);
-        float diffLod = roughnessToLod(bsdf.roughness * 2.0);
-        float specLod = roughnessToLod(bsdf.roughness);
-        float envMaxIntensity = roughnessToIntensity(bsdf.roughness);
-        float F = evalFresnelSchlick(0.3, 1.0, max(0.0, dot(viewDir, bsdf.guideNormal)));
-        color += gEnvMapIntensity * bsdf.diffuseReflectionAlbedo * min(gScene.envMap.eval(lerp(sd.frame.N, sd.faceN, 0.8), diffLod), 1.0);
-        color +=  gEnvMapIntensity * bsdf.specularReflectionAlbedo * min(gScene.envMap.eval(R, specLod), envMaxIntensity);
-        // perfect mirror
-        if (gEnvMapMirror && bsdf.roughness < 0.08)
-            color += F * gScene.envMap.eval(R, specLod);
-        
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(pixel, 0);
-
-        // Direct lighting from analytic light sources
-        for (int i = 0; i < gScene.getLightCount(); i++)
-        {
-            AnalyticLightSample ls;
-            evalLightApproximate(sd.posW, gScene.getLight(i), ls);
-            float shadow = computeShadowImpl(pixel, i, ls);        
-            color += shadow * mi.eval(sd, ls.dir, sg) * ls.Li * gLightIntensity;  
-        }
-
-        return float4(color, 1.f);
+        return shadeVBuffer(hit.getTriangleHit(), pixel, frameDim, viewDir);
     }
     else // invalid hit => envmap
     {
-        color = gScene.envMap.eval(-viewDir) * gEnvMapIntensity;
+        return float4(gScene.envMap.eval(-viewDir) * gEnvMapIntensity, 1.0);
     }
-    return float4(color, 1.f);
 }

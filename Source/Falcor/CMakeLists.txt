@@ -345,6 +345,7 @@ target_sources(Falcor PRIVATE
 
     Scene/Lighting/LightSettings.h
     Scene/Lighting/LightSettings.cpp
+    Scene/Lighting/Lighting.slangh
 
     Scene/Animation/Animatable.cpp
     Scene/Animation/Animatable.h
