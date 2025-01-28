@@ -4,6 +4,9 @@ target_sources(VBufferLighting PRIVATE
     VBufferLighting.cpp
     VBufferLighting.h
     VBufferLighting.ps.slang
+    Lighting.slangh
+    LightSettings.h
+    LightSettings.cpp
 )
 
 target_copy_shaders(VBufferLighting RenderPasses/VBufferLighting)

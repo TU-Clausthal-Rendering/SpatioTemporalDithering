@@ -52,16 +52,6 @@ public:
 
 private:
     ref<FullScreenPass> mpPass;
-
     ref<Fbo> mpFbo;
-
-    
     ref<Scene> mpScene;
-
-    float mEnvMapIntensity = 0.25f;
-    float mAmbientIntensity = 0.25f;
-    float mLightIntensity = 0.5f;
-    bool mEnvMapMirror = false;
-
-    bool mDirty = true;
 };

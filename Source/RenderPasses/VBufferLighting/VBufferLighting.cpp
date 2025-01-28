@@ -27,6 +27,9 @@
  **************************************************************************/
 #include "VBufferLighting.h"
 
+#define SETTINGS_EXPORTS
+#include "LightSettings.h"
+
 namespace
 {
     const char kShaderFile[] = "RenderPasses/VBufferLighting/VBufferLighting.ps.slang";
@@ -35,11 +38,6 @@ namespace
     const std::string kColor = "color";
     const std::string kVisBuffer = "visibilityBuffer";
     const std::string kRayDir = "rayDir";
-
-    const std::string kAmbientIntensity = "ambientIntensity";
-    const std::string kEnvMapIntensity = "envMapIntensity";
-    const std::string kLightIntensity = "lightIntensity";
-    const std::string kEnvMapMirror = "envMapMirror";
 }
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
@@ -55,27 +53,14 @@ ref<VBufferLighting> VBufferLighting::create(ref<Device> pDevice, const Properti
 VBufferLighting::VBufferLighting(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
-    for (const auto& [key, value] : props)
-    {
-        if (key == kEnvMapIntensity) mEnvMapIntensity = value;
-        else if (key == kAmbientIntensity) mAmbientIntensity = value;
-        else if (key == kLightIntensity) mLightIntensity = value;
-        else if (key == kEnvMapMirror) mEnvMapMirror = value;
-        else logWarning("Unknown field '{}' in a VBufferLighting dictionary.", key);
-    }
+    LightSettings::get().loadFromProperties(props);
 
     mpFbo = Fbo::create(mpDevice);
-
 }
 
 Properties VBufferLighting::getProperties() const
 {
-    Properties d;
-    d[kEnvMapIntensity] = mEnvMapIntensity;
-    d[kAmbientIntensity] = mAmbientIntensity;
-    d[kLightIntensity] = mLightIntensity;
-    d[kEnvMapMirror] = mEnvMapMirror;
-    return d;
+    return LightSettings::get().getProperties();
 }
 
 RenderPassReflection VBufferLighting::reflect(const CompileData& compileData)
@@ -103,15 +88,7 @@ void VBufferLighting::execute(RenderContext* pRenderContext, const RenderData& r
     vars["vbuffer"] = pVBuffer;
     vars["rayDir"] = pRayDir;
     vars["visibilityBuffer"] = pVisBuffer;
-
-    if (mDirty)
-    {
-        vars["ConstantCB"]["gAmbientIntensity"] = mAmbientIntensity;
-        vars["ConstantCB"]["gEnvMapIntensity"] = mEnvMapIntensity;
-        vars["ConstantCB"]["gLightIntensity"] = mLightIntensity;
-        vars["ConstantCB"]["gEnvMapMirror"] = mEnvMapMirror;
-        mDirty = false;
-    }
+    LightSettings::get().updateShaderVar(vars);
 
     mpScene->setRaytracingShaderData(pRenderContext, vars);
 
@@ -120,10 +97,7 @@ void VBufferLighting::execute(RenderContext* pRenderContext, const RenderData& r
 
 void VBufferLighting::renderUI(Gui::Widgets& widget)
 {
-    if (widget.var("Ambient Intensity", mAmbientIntensity, 0.f, 100.f, 0.1f)) mDirty = true;
-    if (widget.var("Env Map Intensity", mEnvMapIntensity, 0.f, 100.f, 0.1f)) mDirty = true;
-    if (widget.var("Scene Light Intensity", mLightIntensity, 0.f, 100.f, 0.1f)) mDirty = true;
-    if (widget.checkbox("Env Map Mirror Reflections", mEnvMapMirror)) mDirty = true;
+    LightSettings::get().renderUI(widget);
 }
 
 void VBufferLighting::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene)
@@ -139,6 +113,5 @@ void VBufferLighting::setScene(RenderContext* pRenderContext, const ref<Scene>& 
         desc.addTypeConformances(mpScene->getTypeConformances());
         desc.setShaderModel("6_5");
         mpPass = FullScreenPass::create(mpDevice, desc, mpScene->getSceneDefines());
-        mDirty = true;
     }
 }
