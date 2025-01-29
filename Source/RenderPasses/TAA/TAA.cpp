@@ -170,6 +170,7 @@ void TAA::execute(RenderContext* pRenderContext, const RenderData& renderData)
         var["PerFrameCB"]["gRejectVBufferMotion"] = mControls.rejectVBufferMotion;
         var["PerFrameCB"]["gPrevFrameDelta"] = std::max(mPreviousDelta, 0.000001f);
         var["PerFrameCB"]["gCurFrameDelta"] = std::max(mCurrentDelta, 0.000001f);
+        var["PerFrameCB"]["gColorStatRadius"] = mControls.colorStatRadius;
         var["gTexColor"] = pColorIn;
         var["gTexMotionVec"] = pMotionVec;
         var["gTexPrevMotionVec"] = mpPrevMotion;
@@ -293,6 +294,8 @@ void TAA::renderUI(Gui::Widgets& widget)
         }
 
         boolDropdown("ClipMode", mControls.useClipping, "Clamp", "Clip");
+
+        widget.var("Color Stat Radius", mControls.colorStatRadius, 1, 5);
     }
 
     boolDropdown("Color Fetch", mControls.bicubicColorFetch, "Bilinear", "Bicubic");

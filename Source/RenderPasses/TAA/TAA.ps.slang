@@ -48,6 +48,7 @@ cbuffer PerFrameCB
     bool gRejectVBufferMotion; // rejects based on motion of the vbuffer: if the reprojected vbuffer hit is in the current pixel, it can be used, otherwise reject.
     float gPrevFrameDelta; // time deltas for motion vector normalization
     float gCurFrameDelta;
+    int gColorStatRadius; // radius for color statistics
 };
 
 Texture2D gTexColor;
@@ -264,7 +265,17 @@ PSOut main(float2 texC : TEXCOORD)
     float3 colorVar = color * color;
     float3 colorMin = color;
     float3 colorMax = color;
-    [unroll]
+    for(int rx = -gColorStatRadius; rx <= gColorStatRadius; ++rx) for(int ry = -gColorStatRadius; ry <= gColorStatRadius; ++ry)
+    {
+        if (rx == 0 && ry == 0) continue; // skip this
+        float3 c = gTexColor.Load(int3(ipos + int2(rx, ry), 0)).rgb;
+        c = RGBToYCgCo(c);
+        colorAvg += c;
+        colorVar += c * c;
+        colorMin = min(colorMin, c);
+        colorMax = max(colorMax, c);
+    }
+    /*[unroll]
     for (int k = 0; k < 8; k++)
     {
         float3 c = gTexColor.Load(int3(ipos + offset[k], 0)).rgb;
@@ -273,9 +284,9 @@ PSOut main(float2 texC : TEXCOORD)
         colorVar += c * c;
         colorMin = min(colorMin, c);
         colorMax = max(colorMax, c);
-    }
+    }*/
 
-    float oneOverNine = 1.f / 9.f;
+    float oneOverNine = 1.f / float((2 * gColorStatRadius + 1) * (2 * gColorStatRadius + 1));
     colorAvg *= oneOverNine;
     colorVar *= oneOverNine;
 

@@ -70,6 +70,7 @@ private:
     {
         float alpha = 0.1f;
         float colorBoxSigma = 1.0f;
+        int colorStatRadius = 1; // radius in which to gather local statistics (color box or color variance)
         bool antiFlicker = false;
         bool useMaxMotionVector = false;
         bool rectifyColor = true; // otherwise color will be taken as is
