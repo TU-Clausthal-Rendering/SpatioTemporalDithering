@@ -476,6 +476,20 @@ else()
     set(FALCOR_HAS_DLSS OFF PARENT_SCOPE)
 endif()
 
+# FFXAPI
+set(FFX_DIR ${PACKMAN_DIR}/fsr/ffx-api)
+set(FFX_LIB_DIR ${PACKMAN_DIR}/fsr/PrebuiltSignedDLL)
+set(FFX_API_BACKEND DX12_X64)
+add_library(ffxapi SHARED IMPORTED GLOBAL)
+set_target_properties(ffxapi PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES ${FFX_DIR}/include
+    IMPORTED_LOCATION_RELEASE ${FFX_LIB_DIR}/amd_fidelityfx_dx12.dll
+    IMPORTED_LOCATION_DEBUG ${FFX_LIB_DIR}/amd_fidelityfx_dx12.dll
+    IMPORTED_IMPLIB_RELEASE ${FFX_LIB_DIR}/amd_fidelityfx_dx12.lib
+    IMPORTED_IMPLIB_DEBUG ${FFX_LIB_DIR}/amd_fidelityfx_dx12.lib
+)
+set(FALCOR_HAS_FFXAPI ON PARENT_SCOPE)
+
 # optix
 set(OPTIX_DIR ${PACKMAN_DIR}/optix)
 if(EXISTS ${OPTIX_DIR}/include/optix.h)

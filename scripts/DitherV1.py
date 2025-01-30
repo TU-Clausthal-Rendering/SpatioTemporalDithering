@@ -13,6 +13,8 @@ def render_graph_Dither():
     g.create_pass('ToneMapperTAA', 'ToneMapper', {'outputSize': 'Default', 'useSceneMetadata': True, 'exposureCompensation': 0.0, 'autoExposure': False, 'filmSpeed': 100.0, 'whiteBalance': False, 'whitePoint': 6500.0, 'operator': 'Linear', 'clamp': False, 'whiteMaxLuminance': 1.0, 'whiteScale': 11.199999809265137, 'fNumber': 1.0, 'shutter': 1.0, 'exposureMode': 'AperturePriority'})
     g.create_pass('AccumulatePass', 'AccumulatePass', {'enabled': True, 'outputSize': 'Default', 'autoReset': True, 'precisionMode': 'Single', 'maxFrameCount': 0, 'overflowMode': 'Stop'})
     g.create_pass('ToneMapperAccumulate', 'ToneMapper', {'outputSize': 'Default', 'useSceneMetadata': True, 'exposureCompensation': 0.0, 'autoExposure': False, 'filmSpeed': 100.0, 'whiteBalance': False, 'whitePoint': 6500.0, 'operator': 'Linear', 'clamp': False, 'whiteMaxLuminance': 1.0, 'whiteScale': 11.199999809265137, 'fNumber': 1.0, 'shutter': 1.0, 'exposureMode': 'AperturePriority'})
+    g.create_pass('FSR', 'FSR', {})
+    g.create_pass('ToneMapperFSR', 'ToneMapper', {'outputSize': 'Default', 'useSceneMetadata': True, 'exposureCompensation': 0.0, 'autoExposure': False, 'filmSpeed': 100.0, 'whiteBalance': False, 'whitePoint': 6500.0, 'operator': 'Linear', 'clamp': False, 'whiteMaxLuminance': 1.0, 'whiteScale': 11.199999809265137, 'fNumber': 1.0, 'shutter': 1.0, 'exposureMode': 'AperturePriority'})
     g.add_edge('DitherVBuffer.vbuffer', 'VBufferLighting.vbuffer')
     g.add_edge('DitherVBuffer.mvec', 'TAA.motionVecs')
     g.add_edge('DitherVBuffer.mvec', 'DLSSPass.mvec')
@@ -27,9 +29,14 @@ def render_graph_Dither():
     g.add_edge('VBufferLighting.color', 'AccumulatePass.input')
     g.add_edge('AccumulatePass.output', 'ToneMapperAccumulate.src')
     g.add_edge('TAA.colorOut', 'ToneMapperTAA.src')
+    g.add_edge('VBufferLighting.color', 'FSR.color')
+    g.add_edge('DitherVBuffer.mvec', 'FSR.mvec')
+    g.add_edge('DitherVBuffer.depth', 'FSR.depth')
+    g.add_edge('FSR.output', 'ToneMapperFSR.src')
     g.mark_output('ToneMapper.dst')
     g.mark_output('ToneMapperTAA.dst')
     g.mark_output('ToneMapperAccumulate.dst')
+    g.mark_output('ToneMapperFSR.dst')
     return g
 
 Dither = render_graph_Dither()

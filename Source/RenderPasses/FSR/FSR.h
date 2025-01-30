@@ -56,7 +56,7 @@ private:
 
     float mSharpness = 0.0f;
     bool mReset = true;
-    bool mEnabled = false;
+    bool mEnabled = true;
 
     CpuTimer mTimer;
 };

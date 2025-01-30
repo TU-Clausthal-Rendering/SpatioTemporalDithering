@@ -68,6 +68,13 @@ if exist %NrdDir% (
     )
 )
 
+rem Copy FFXAPI
+set FfxDir=%ExtDir%\fsr
+if exist %FfxDir% (
+    robocopy %FfxDir%\PrebuiltSignedDLL %OutDir% *.dll /r:0 >nul
+)
+
+
 rem Copy RTXDI SDK shaders
 set RtxdiSDKDir=%ExtDir%\rtxdi\rtxdi-sdk\include\rtxdi
 set RtxdiSDKTargetDir=%OutDir%\shaders\rtxdi

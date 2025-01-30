@@ -27,9 +27,10 @@
  **************************************************************************/
 //#include "Core/API/Shared/D3D12Handles.h"
 #include "FSR.h"
-#include "ffx_api/dx12/ffx_api_dx12.hpp"
-#include "ffx_api/ffx_upscale.hpp"
-#include "ffx_api/ffx_api_types.h"
+#include "Core/API/NativeHandleTraits.h"
+#include <ffx_api/dx12/ffx_api_dx12.hpp>
+#include <ffx_api/ffx_upscale.hpp>
+#include <ffx_api/ffx_api_types.h>
 #include "Utils/Math/FalcorMath.h"
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
@@ -49,7 +50,9 @@ namespace
 
 static void ffxApiMessageFunc(uint32_t type, const wchar_t* message)
 {
-    std::cerr << "FFX API message: " << message << std::endl;
+    auto wstr = std::wstring(message);
+    auto cstr = std::string(wstr.begin(), wstr.end());
+    std::cerr << "FFX API message: " << cstr << std::endl;
 }
 
 FSR::FSR(ref<Device> pDevice, const Properties& props)
@@ -84,7 +87,7 @@ void FSR::compile(RenderContext* pRenderContext, const CompileData& compileData)
     backendDesc.device = pNative;
 
     ffx::CreateContextDescUpscale contextDesc{};
-    contextDesc.flags = FFX_UPSCALE_ENABLE_HIGH_DYNAMIC_RANGE | FFX_UPSCALE_ENABLE_AUTO_EXPOSURE;// | FFX_UPSCALE_QUALITY_MODE_NATIVEAA;
+    contextDesc.flags = FFX_UPSCALE_ENABLE_HIGH_DYNAMIC_RANGE; // | FFX_UPSCALE_ENABLE_AUTO_EXPOSURE;
     contextDesc.maxRenderSize = { compileData.defaultTexDims.x, compileData.defaultTexDims.y };
     contextDesc.maxUpscaleSize = { compileData.defaultTexDims.x, compileData.defaultTexDims.y };
 //#if defined(_DEBUG)
@@ -103,6 +106,7 @@ void FSR::compile(RenderContext* pRenderContext, const CompileData& compileData)
     ffx::Query(mContext, upscalerGetGPUMemoryUsage);
     std::cerr << "FSR: Upscaler Context VRAM totalUsageInBytes " << gpuMemoryUsageUpscaler.totalUsageInBytes / 1048576.f << " MB" << std::endl;
     std::cerr << "                       aliasableUsageInBytes " << gpuMemoryUsageUpscaler.aliasableUsageInBytes / 1048576.f << " MB" << std::endl;
+
 }
 
 static FfxApiResource ffxGetResourceApi(RenderContext* pRenderContext, Texture* pTexture)
