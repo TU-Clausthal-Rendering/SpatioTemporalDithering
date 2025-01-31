@@ -38,6 +38,7 @@ namespace
     const char kEnabled[] = "enabled";
     const char kOutputSize[] = "outputSize";
     const char kProfile[] = "profile";
+    const char kPreset[] = "preset";
     const char kMotionVectorScale[] = "motionVectorScale";
     const char kIsHDR[] = "isHDR";
     const char kUseJitteredMV[] = "useJitteredMV";
@@ -50,7 +51,7 @@ static void registerDLSSPass(pybind11::module& m)
     pybind11::class_<DLSSPass, RenderPass, ref<DLSSPass>> pass(m, "DLSSPass");
 }
 
-extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
+extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry & registry)
 {
     registry.registerClass<RenderPass, DLSSPass>();
     ScriptBindings::registerBinding(registerDLSSPass);
@@ -66,6 +67,8 @@ DLSSPass::DLSSPass(ref<Device> pDevice, const Properties& props) : RenderPass(pD
             mOutputSizeSelection = value;
         else if (key == kProfile)
             mProfile = value;
+        else if (key == kPreset)
+            mPreset = value;
         else if (key == kMotionVectorScale)
             mMotionVectorScale = value;
         else if (key == kIsHDR)
@@ -92,6 +95,7 @@ Properties DLSSPass::getProperties() const
     props[kEnabled] = mEnabled;
     props[kOutputSize] = mOutputSizeSelection;
     props[kProfile] = mProfile;
+    props[kPreset] = mPreset;
     props[kMotionVectorScale] = mMotionVectorScale;
     props[kIsHDR] = mIsHDR;
     props[kUseJitteredMV] = mUseJitterMVFlag;
@@ -106,7 +110,7 @@ RenderPassReflection DLSSPass::reflect(const CompileData& compileData)
     const uint2 sz = RenderPassHelpers::calculateIOSize(mOutputSizeSelection, mDLSSOutputSize, compileData.defaultTexDims);
 
     r.addInput(kColorInput, "Color input").bindFlags(ResourceBindFlags::ShaderResource);
-    r.addInput(kDepthInput, "Depth input. 0=near, 1=far").bindFlags(ResourceBindFlags::ShaderResource);
+    r.addInput(kDepthInput, "Depth input").bindFlags(ResourceBindFlags::ShaderResource);
     r.addInput(kMotionVectorsInput, "Motion vectors input").bindFlags(ResourceBindFlags::ShaderResource);
     r.addOutput(kOutput, "Color output")
         .format(ResourceFormat::RGBA32Float)
@@ -147,6 +151,18 @@ void DLSSPass::renderUI(Gui::Widgets& widget)
     if (mEnabled)
     {
         mRecreate |= widget.dropdown("Profile", mProfile);
+
+        mRecreate |= widget.dropdown("Preset", mPreset);
+        widget.tooltip(
+            "Explanation for presets. Intended modes are shown in brackets\n"
+            "PresetA (Perf/Balanced/Quality): An older variant best suited to combat ghosting for elements with missing inputs\n"
+            "PresetB (Ultra Perf): Similar to Preset A but for Ultra Performance mode \n"
+            "PresetC (Perf/Balanced/Quality): Preset which generally favors current frame information. Generally well-suited for fast paced game content\n"
+            "PresetD (Perf/Balanced/Quality): Similar to Preset E. Preset E is generally recommended over Preset D.\n"
+            "PresetE (Perf/Balanced/Quality): The default preset for Perf/Balanced/Quality modes. Generally recommended preset for most performance and image stability.\n"
+            "PresetF (Ultra Perf/DLAA): The default preset for Ultra Perf and DLAA modes.\n"
+            "PresetJ (Perf/Balanced/Quality/DLAA): Transformer based. Best image quality preset in terms of aliasing quality and image stability but at a higher performance cost.\n "
+        );
 
         widget.dropdown("Motion vector scale", mMotionVectorScale);
         widget.tooltip(
@@ -201,6 +217,40 @@ void DLSSPass::initializeDLSS(RenderContext* pRenderContext)
         perfQuality = NVSDK_NGX_PerfQuality_Value_DLAA;
         break;
     }
+
+    //Change Preset Model
+    NVSDK_NGX_DLSS_Hint_Render_Preset renderPreset = NVSDK_NGX_DLSS_Hint_Render_Preset::NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
+    switch (mPreset)
+    {
+    case DLSSPass::Preset::Default:
+        renderPreset = NVSDK_NGX_DLSS_Hint_Render_Preset::NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
+        break;
+    case DLSSPass::Preset::PresetA:
+        renderPreset = NVSDK_NGX_DLSS_Hint_Render_Preset::NVSDK_NGX_DLSS_Hint_Render_Preset_A;
+        break;
+    case DLSSPass::Preset::PresetB:
+        renderPreset = NVSDK_NGX_DLSS_Hint_Render_Preset::NVSDK_NGX_DLSS_Hint_Render_Preset_B;
+        break;
+    case DLSSPass::Preset::PresetC:
+        renderPreset = NVSDK_NGX_DLSS_Hint_Render_Preset::NVSDK_NGX_DLSS_Hint_Render_Preset_C;
+        break;
+    case DLSSPass::Preset::PresetD:
+        renderPreset = NVSDK_NGX_DLSS_Hint_Render_Preset::NVSDK_NGX_DLSS_Hint_Render_Preset_D;
+        break;
+    case DLSSPass::Preset::PresetE:
+        renderPreset = NVSDK_NGX_DLSS_Hint_Render_Preset::NVSDK_NGX_DLSS_Hint_Render_Preset_E;
+        break;
+    case DLSSPass::Preset::PresetF:
+        renderPreset = NVSDK_NGX_DLSS_Hint_Render_Preset::NVSDK_NGX_DLSS_Hint_Render_Preset_F;
+        break;
+    case DLSSPass::Preset::PresetJ:
+        renderPreset = NVSDK_NGX_DLSS_Hint_Render_Preset::NVSDK_NGX_DLSS_Hint_Render_Preset_J;
+        break;
+    default:
+        break;
+    }
+
+    mpNGXWrapper->changeDLSSPreset(renderPreset, perfQuality);
 
     auto optimalSettings = mpNGXWrapper->queryOptimalSettings(mInputSize, perfQuality);
 

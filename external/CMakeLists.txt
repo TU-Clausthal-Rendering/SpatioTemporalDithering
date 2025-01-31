@@ -461,14 +461,26 @@ else()
 endif()
 
 # dlss
-set(DLSS_DIR ${PACKMAN_DIR}/dlss)
+#The official .zip from the github always contains the folder with the version name.
+#The following code handles that and sets the correct directory
+file(GLOB DLSS_DIR_LIST "${PACKMAN_DIR}/dlss/dlss-*")
+list(LENGTH DLSS_DIR_LIST DLSS_COUNT)
+if(NOT DLSS_COUNT EQUAL 1)
+    message(FATAL_ERROR "Expected exactly one DLSS directory in the packman repo (dlss), found ${DLSS_COUNT}")
+endif()
+# Extract the first (and only) result from the list
+list(GET DLSS_DIR_LIST 0 DLSS_DIR)
 set(FALCOR_DLSS_DIR ${DLSS_DIR} PARENT_SCOPE)
 if(EXISTS ${DLSS_DIR}/include/nvsdk_ngx.h)
     add_library(dlss STATIC IMPORTED GLOBAL)
     set_target_properties(dlss PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES ${DLSS_DIR}/include
-        IMPORTED_LOCATION_RELEASE ${DLSS_DIR}/lib/Windows_x86_64/x86_64/nvsdk_ngx_d.lib
-        IMPORTED_LOCATION_DEBUG ${DLSS_DIR}/lib/Windows_x86_64/x86_64/nvsdk_ngx_d_dbg.lib
+        if(EXISTS ${DLSS_DIR}/lib/Windows_x86_64/x86_64/nvsdk_ngx_d.lib)
+			IMPORTED_LOCATION_RELEASE ${DLSS_DIR}/lib/Windows_x86_64/x86_64/nvsdk_ngx_d.lib
+			IMPORTED_LOCATION_DEBUG ${DLSS_DIR}/lib/Windows_x86_64/x86_64/nvsdk_ngx_d_dbg.lib
+		else()
+			IMPORTED_LOCATION_RELEASE ${DLSS_DIR}/lib/Windows_x86_64/x64/nvsdk_ngx_d.lib
+			IMPORTED_LOCATION_DEBUG ${DLSS_DIR}/lib/Windows_x86_64/x64/nvsdk_ngx_d_dbg.lib
         INTERFACE_COMPILE_DEFINITIONS NV_WINDOWS
     )
     set(FALCOR_HAS_DLSS ON PARENT_SCOPE)

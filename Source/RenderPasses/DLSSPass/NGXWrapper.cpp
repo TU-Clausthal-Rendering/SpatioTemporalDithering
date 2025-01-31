@@ -299,6 +299,32 @@ namespace Falcor
         }
     }
 
+    void NGXWrapper::changeDLSSPreset(NVSDK_NGX_DLSS_Hint_Render_Preset renderPreset, NVSDK_NGX_PerfQuality_Value perfQuality) {
+        switch (perfQuality)
+        {
+        case NVSDK_NGX_PerfQuality_Value_MaxPerf:
+            NVSDK_NGX_Parameter_SetUI(mpParameters, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance, renderPreset);
+            break;
+        case NVSDK_NGX_PerfQuality_Value_Balanced:
+            NVSDK_NGX_Parameter_SetUI(mpParameters, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced, renderPreset);
+            break;
+        case NVSDK_NGX_PerfQuality_Value_MaxQuality:
+            NVSDK_NGX_Parameter_SetUI(mpParameters, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality, renderPreset);
+            break;
+        case NVSDK_NGX_PerfQuality_Value_UltraPerformance:
+            NVSDK_NGX_Parameter_SetUI(mpParameters, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance, renderPreset);
+            break;
+        case NVSDK_NGX_PerfQuality_Value_UltraQuality:
+            NVSDK_NGX_Parameter_SetUI(mpParameters, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality, renderPreset);
+            break;
+        case NVSDK_NGX_PerfQuality_Value_DLAA:
+            NVSDK_NGX_Parameter_SetUI(mpParameters, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA, renderPreset);
+            break;
+        default:
+            break;
+        }
+    }
+
     NGXWrapper::OptimalSettings NGXWrapper::queryOptimalSettings(uint2 displaySize, NVSDK_NGX_PerfQuality_Value perfQuality) const
     {
         OptimalSettings settings;

@@ -58,7 +58,33 @@ public:
             //{Profile::UltraQuality, "UltraQuality"}, //Not Available
             {Profile::DLAA, "DLAA"},
         }
-        );
+    );
+
+    enum class Preset : uint32_t
+    {
+        Default,
+        PresetA,
+        PresetB,
+        PresetC,
+        PresetD,
+        PresetE,
+        PresetF,
+        PresetJ,
+    };
+
+    FALCOR_ENUM_INFO(
+        Preset,
+        {
+            {Preset::Default, "Default(CNN)"},
+            {Preset::PresetA, "PresetA(CNN)"},
+            {Preset::PresetB, "PresetB(CNN)"},
+            {Preset::PresetC, "PresetC(CNN)"},
+            {Preset::PresetD, "PresetD(CNN)"},
+            {Preset::PresetE, "PresetE(CNN)"},
+            {Preset::PresetF, "PresetF(CNN)"},
+            {Preset::PresetJ, "PresetJ(Transformer)"},
+        }
+    );
 
     enum class MotionVectorScale : uint32_t
     {
@@ -72,7 +98,7 @@ public:
             {MotionVectorScale::Absolute, "Absolute"},
             {MotionVectorScale::Relative, "Relative"},
         }
-        );
+    );
 
     static ref<DLSSPass> create(ref<Device> pDevice, const Properties& props) { return make_ref<DLSSPass>(pDevice, props); }
 
@@ -91,6 +117,7 @@ private:
     // Options
     bool mEnabled = true;
     Profile mProfile = Profile::DLAA;
+    Preset mPreset = Preset::Default;
     MotionVectorScale mMotionVectorScale = MotionVectorScale::Relative;
     bool mIsHDR = true;
     bool mUseJitterMVFlag = false;   //This seems to fix the ghosting issue
@@ -113,3 +140,4 @@ private:
 
 FALCOR_ENUM_REGISTER(DLSSPass::Profile);
 FALCOR_ENUM_REGISTER(DLSSPass::MotionVectorScale);
+FALCOR_ENUM_REGISTER(DLSSPass::Preset);

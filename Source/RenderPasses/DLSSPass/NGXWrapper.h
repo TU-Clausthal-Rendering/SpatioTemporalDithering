@@ -57,6 +57,9 @@ namespace Falcor
         NGXWrapper(ref<Device> pDevice, const std::filesystem::path& applicationDataPath, const std::filesystem::path& featureSearchPath);
         ~NGXWrapper();
 
+        // Change DLSS Render Preset
+        void changeDLSSPreset(NVSDK_NGX_DLSS_Hint_Render_Preset renderPreset, NVSDK_NGX_PerfQuality_Value perfQuality);
+
         /// Query optimal DLSS settings for a given resolution and performance/quality profile.
         OptimalSettings queryOptimalSettings(uint2 displaySize, NVSDK_NGX_PerfQuality_Value perfQuality) const;
 

@@ -134,6 +134,7 @@ if %IsDebug% EQU 0 (
 rem Copy DLSS
 if exist %DLSSDir% (
     robocopy %DLSSDir%\lib\Windows_x86_64\rel %OutDir% nvngx_dlss.dll /r:0 >nul
+    robocopy %DLSSDir%\lib\Windows_x86_64\rel %OutDir% nvngx_dlssd.dll /r:0 >nul
 )
 
 rem robocopy sets the error level to something that is not zero even if the copy operation was successful. Set the error level to zero
