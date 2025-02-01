@@ -4,7 +4,7 @@ from falcor import *
 def render_graph_Dither():
     g = RenderGraph('Dither')
     g.create_pass('VBufferLighting', 'VBufferLighting', {'envMapIntensity': 0.25, 'ambientIntensity': 0.25, 'lightIntensity': 0.5, 'envMapMirror': False})
-    g.create_pass('DitherVBuffer', 'DitherVBuffer', {})
+    g.create_pass('DitherVBuffer', 'DitherVBuffer', {'useWhitelist': True, 'whitelist': 'CollectInner,Collectible,Smoke,'})
     g.create_pass('ToneMapper', 'ToneMapper', {'outputSize': 'Default', 'useSceneMetadata': True, 'exposureCompensation': 0.0, 'autoExposure': False, 'filmSpeed': 100.0, 'whiteBalance': False, 'whitePoint': 6500.0, 'operator': 'Linear', 'clamp': False, 'whiteMaxLuminance': 1.0, 'whiteScale': 11.199999809265137, 'fNumber': 1.0, 'shutter': 1.0, 'exposureMode': 'AperturePriority'})
     g.create_pass('TAA', 'TAA', {'alpha': 0.10000000149011612, 'colorBoxSigma': 1.0, 'antiFlicker': False})
     g.create_pass('DLSSPass', 'DLSSPass', {'enabled': True, 'outputSize': 'Default', 'profile': 'DLAA', 'preset': 'Default(CNN)', 'motionVectorScale': 'Relative', 'isHDR': True, 'useJitteredMV': False, 'sharpness': 0.3499999940395355, 'exposure': 0.0})
@@ -12,7 +12,7 @@ def render_graph_Dither():
     g.create_pass('RayShadow', 'RayShadow', {})
     g.create_pass('AccumulatePass', 'AccumulatePass', {'enabled': True, 'outputSize': 'Default', 'autoReset': True, 'precisionMode': 'Single', 'maxFrameCount': 0, 'overflowMode': 'Stop'})
     g.create_pass('FSR', 'FSR', {})
-    g.create_pass('OutputSwitch', 'Switch', {'count': 5, 'selected': 4, 'i0': 'DLSS', 'i1': 'TAA', 'i2': 'Accumulate', 'i3': 'FSR', 'i4': 'RayReconstruction'})
+    g.create_pass('OutputSwitch', 'Switch', {'count': 5, 'selected': 0, 'i0': 'DLSS', 'i1': 'TAA', 'i2': 'Accumulate', 'i3': 'FSR', 'i4': 'RayReconstruction'})
     g.create_pass('RayReconstructionPass', 'RayReconstructionPass', {})
     g.add_edge('DitherVBuffer.vbuffer', 'VBufferLighting.vbuffer')
     g.add_edge('DitherVBuffer.mvec', 'TAA.motionVecs')

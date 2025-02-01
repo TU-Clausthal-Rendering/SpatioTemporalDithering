@@ -45,7 +45,7 @@ float hash4D(float4 v)
 bool winRoulette(float alpha, uint frameIndex, float3 posW)
 {
     // quantize posW
-    posW = floor(posW * 1000.0) / 1000.0;
+    //posW = floor(posW * 1000.0) / 1000.0;
     float rng = hash4D(float4(posW, frameIndex));
     if(rng > alpha) return false;
     return true;
@@ -53,10 +53,13 @@ bool winRoulette(float alpha, uint frameIndex, float3 posW)
 
 bool winRotation(uint2 pixel, float alpha, uint frameIndex)
 {
+    // quantize alpha?
+    //alpha = floor(alpha * 16.0) / 16.0;
+
     float rng = 0.0;
     //rng += hash(float2(pixel));
     //frameIndex = frameIndex % 2048;
-    //rng += float((pixel.y % 4u) + 4u * (pixel.x % 4u)) / 16.0;
+    //rng += float((pixel.x % 4u) + 4u * (pixel.y % 4u)) / 16.0;
     rng += ditherMatrix[pixel.x % 4u][pixel.y % 4u] / 16.0;
     rng += hash(float2(InstanceID(), GeometryIndex()));
     //rng = hash4D(float4(pixel.x, pixel.y, InstanceID(), GeometryIndex()));

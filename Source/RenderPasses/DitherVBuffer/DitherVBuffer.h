@@ -72,6 +72,8 @@ public:
 private:
     void setupProgram();
     void createStratifiedBuffers();
+    // returns true if at least one material was whitelisted (or scene was invalid)
+    bool updateWhitelistBuffer();
 
     ref<Scene> mpScene;
 
@@ -80,12 +82,15 @@ private:
     ref<SampleGenerator> mpSampleGenerator;
     ref<Buffer> mpStratifiedIndices;
     ref<Buffer> mpStratifiedLookUpBuffer;
+    ref<Buffer> mpTransparencyWhitelist;
 
     uint mFrameCount = 0;
 
     ref<HaltonSamplePattern> mpSamplePattern;
     DitherMode mDitherMode = DitherMode::PerJitter;
-    bool mUseAlphaTextureLOD = true; // use lod for alpha lookups
+    bool mUseAlphaTextureLOD = false; // use lod for alpha lookups
+    bool mUseTransparencyWhitelist = true;
+    std::set<std::string> mTransparencyWhitelist;
 };
 
 FALCOR_ENUM_REGISTER(DitherVBuffer::DitherMode);

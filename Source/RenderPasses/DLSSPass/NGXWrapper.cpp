@@ -201,8 +201,8 @@ namespace Falcor
             {
             case Device::Type::D3D12:
 #if FALCOR_HAS_D3D12
-                THROW_IF_FAILED(NVSDK_NGX_D3D12_DestroyParameters(mpParameters));
-                THROW_IF_FAILED(NVSDK_NGX_D3D12_Shutdown1(mpDevice->getNativeHandle().as<ID3D12Device*>()));
+                NVSDK_NGX_D3D12_DestroyParameters(mpParameters);
+                NVSDK_NGX_D3D12_Shutdown1(mpDevice->getNativeHandle().as<ID3D12Device*>());
 #endif
                 break;
             case Device::Type::Vulkan:
@@ -286,7 +286,7 @@ namespace Falcor
             {
             case Device::Type::D3D12:
 #if FALCOR_HAS_D3D12
-                THROW_IF_FAILED(NVSDK_NGX_D3D12_ReleaseFeature(mpFeature));
+                NVSDK_NGX_D3D12_ReleaseFeature(mpFeature);
 #endif
                 break;
             case Device::Type::Vulkan:

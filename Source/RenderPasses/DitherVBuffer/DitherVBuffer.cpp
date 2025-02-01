@@ -35,6 +35,9 @@ namespace
 
     const uint32_t kMaxPayloadSizeBytes = 4; 
     const std::string kProgramRaytraceFile = "RenderPasses/DitherVBuffer/DitherVBuffer.rt.slang";
+
+    const std::string kUseWhitelist = "useWhitelist";
+    const std::string kWhitelist = "whitelist";
 }
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
@@ -48,11 +51,33 @@ DitherVBuffer::DitherVBuffer(ref<Device> pDevice, const Properties& props)
     mpSampleGenerator = SampleGenerator::create(mpDevice, SAMPLE_GENERATOR_UNIFORM);
     mpSamplePattern = HaltonSamplePattern::create(16);
     createStratifiedBuffers();
+    // load properties
+    for (const auto& [key, value] : props)
+    {
+        if (key == kUseWhitelist) mUseTransparencyWhitelist = value;
+        else if (key == kWhitelist)
+        {
+            std::stringstream ss;
+            std::string svalue = value;
+            ss << svalue;
+            std::string entry;
+            while (std::getline(ss, entry, ','))
+            {
+                mTransparencyWhitelist.insert(entry);
+            }
+        }
+    }
 }
 
 Properties DitherVBuffer::getProperties() const
 {
-    return {};
+    Properties props;
+    props[kUseWhitelist] = mUseTransparencyWhitelist;
+    // convert whitelist into a comma separated string
+    std::stringstream ss;
+    for(const auto& entry : mTransparencyWhitelist) ss << entry << ",";
+    props[kWhitelist] = ss.str();
+    return props;
 }
 
 RenderPassReflection DitherVBuffer::reflect(const CompileData& compileData)
@@ -81,11 +106,14 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     var["gMotion"] = pMotion;
     var["gStratifiedIndices"] = mpStratifiedIndices;
     var["gStratifiedLookUpTable"] = mpStratifiedLookUpBuffer;
+    assert(mpTransparencyWhitelist);
+    var["gTransparencyWhitelist"] = mpTransparencyWhitelist;
 
     var["PerFrame"]["gFrameCount"] = mFrameCount++;
     var["PerFrame"]["gSampleCount"] = mpSamplePattern->getSampleCount();
     var["PerFrame"]["gSampleIndex"] = mpSamplePattern->getCurSample();
 
+    mpProgram->addDefine("TRANSPARENCY_WHITELIST", mUseTransparencyWhitelist ? "1" : "0");
     mpProgram->addDefine("DITHER_MODE", std::to_string(uint32_t(mDitherMode)));
     mpProgram->addDefine("ALPHA_TEXTURE_LOD", mUseAlphaTextureLOD ? "1" : "0");
 
@@ -105,12 +133,35 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
     }
     widget.dropdown("Dither", mDitherMode);
     widget.checkbox("Alpha Texture LOD", mUseAlphaTextureLOD);
+
+    widget.checkbox("Transparency Whitelist", mUseTransparencyWhitelist);
+    if(mUseTransparencyWhitelist && mpScene)
+    {
+        auto g = widget.group("Whitelist");
+        std::string removeEntry;
+        // list all material names of the current scene
+        for (uint mat = 0; mat < mpScene->getMaterialCount(); ++mat)
+        {
+            std::string name = mpScene->getMaterial(MaterialID(mat))->getName();
+            bool isTransparent = mTransparencyWhitelist.find(name) != mTransparencyWhitelist.end();
+            if (g.checkbox(name.c_str(), isTransparent))
+            {
+                if (isTransparent) mTransparencyWhitelist.insert(name);
+                else mTransparencyWhitelist.erase(name);
+                updateWhitelistBuffer();
+            }
+        }
+    }
 }
 
 void DitherVBuffer::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene)
 {
     mpScene = pScene;
     setupProgram();
+    if(!updateWhitelistBuffer())
+    {
+        mUseTransparencyWhitelist = false; // disable whitelist since nothing is whitelisted (might confuse people when loading in custom scenes)
+    }
 }
 
 void DitherVBuffer::setupProgram()
@@ -150,4 +201,22 @@ void DitherVBuffer::createStratifiedBuffers()
 
     mpStratifiedIndices = Buffer::createStructured(mpDevice, sizeof(indices[0]), uint32_t(indices.size()), ResourceBindFlags::ShaderResource, Buffer::CpuAccess::None, indices.data(), false);
     mpStratifiedLookUpBuffer = Buffer::createStructured(mpDevice, sizeof(lookUpTable[0]), uint32_t(lookUpTable.size()), ResourceBindFlags::ShaderResource, Buffer::CpuAccess::None, lookUpTable.data(), false);
+}
+
+bool DitherVBuffer::updateWhitelistBuffer()
+{
+    if (!mpScene) return true;
+    bool any = false;
+
+    std::vector<uint32_t> whitelist;
+    for(uint mat = 0; mat < mpScene->getMaterialCount(); ++mat)
+    {
+        std::string name = mpScene->getMaterial(MaterialID(mat))->getName();
+        bool isTransparent = mTransparencyWhitelist.find(name) != mTransparencyWhitelist.end();
+        whitelist.push_back(isTransparent ? 1 : 0);
+        any |= isTransparent;
+    }
+
+    mpTransparencyWhitelist = Buffer::createStructured(mpDevice, sizeof(uint), whitelist.size(), ResourceBindFlags::ShaderResource, Buffer::CpuAccess::None, whitelist.data(), false);
+    return any;
 }
