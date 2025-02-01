@@ -52,14 +52,20 @@ public:
 
 private:
     void setupProgram();
+    // returns true if at least one material was whitelisted (or scene was invalid)
+    bool updateWhitelistBuffer();
 
     ref<Scene> mpScene;
 
     ref<RtProgram> mpProgram;
     ref<RtProgramVars> mpVars;
     ref<SampleGenerator> mpSampleGenerator;
+    ref<Buffer> mpTransparencyWhitelist;
+
     uint mFrameCount = 0;
-    bool mUseAlphaTextureLOD = true; // use lod for alpha lookups
+    bool mUseAlphaTextureLOD = false; // use lod for alpha lookups
+    bool mUseTransparencyWhitelist = false;
+    std::set<std::string> mTransparencyWhitelist;
 
     ref<HaltonSamplePattern> mpSamplePattern;
 };

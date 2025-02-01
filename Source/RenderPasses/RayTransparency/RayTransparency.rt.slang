@@ -23,6 +23,8 @@ cbuffer PerFrame
     uint gFrameCount;       // Frame count since scene was loaded.
 }
 
+StructuredBuffer<uint> gTransparencyWhitelist;
+
 RWTexture2D<PackedHitInfo> gVBuffer;
 RWTexture2D<float2> gMotion;
 RWTexture2D<float4> gTransparent; // rgba transparent color
@@ -78,6 +80,17 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     let lod = ExplicitGradientTextureSampler(ddx, ddy);
     #else
     let lod = ExplicitLodTextureSampler(0.0);
+    #endif
+
+    #if TRANSPARENCY_WHITELIST != 0
+    uint isTransparent = (gTransparencyWhitelist[materialID / 32u] & (1u << (materialID % 32u)));
+    if(isTransparent == 0u)
+    {
+        // use default alpha test if not marked as transparent
+        if (gScene.materials.alphaTest(v, materialID, lod))
+            IgnoreHit();
+        return;
+    }
     #endif
 
     let material = gScene.materials.getMaterial(materialID);   

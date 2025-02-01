@@ -37,6 +37,9 @@ namespace
 
     const uint32_t kMaxPayloadSizeBytes = 5*4;
     const std::string kProgramRaytraceFile = "RenderPasses/RayTransparency/RayTransparency.rt.slang";
+
+    const std::string kUseWhitelist = "useWhitelist";
+    const std::string kWhitelist = "whitelist";
 }
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
@@ -49,11 +52,33 @@ RayTransparency::RayTransparency(ref<Device> pDevice, const Properties& props)
 {
     mpSampleGenerator = SampleGenerator::create(mpDevice, SAMPLE_GENERATOR_UNIFORM);
     mpSamplePattern = HaltonSamplePattern::create(16);
+    // load properties
+    for (const auto& [key, value] : props)
+    {
+        if (key == kUseWhitelist) mUseTransparencyWhitelist = value;
+        else if (key == kWhitelist)
+        {
+            std::stringstream ss;
+            std::string svalue = value;
+            ss << svalue;
+            std::string entry;
+            while (std::getline(ss, entry, ','))
+            {
+                mTransparencyWhitelist.insert(entry);
+            }
+        }
+    }
 }
 
 Properties RayTransparency::getProperties() const
 {
-    return {};
+    Properties props;
+    props[kUseWhitelist] = mUseTransparencyWhitelist;
+    // convert whitelist into a comma separated string
+    std::stringstream ss;
+    for (const auto& entry : mTransparencyWhitelist) ss << entry << ",";
+    props[kWhitelist] = ss.str();
+    return props;
 }
 
 RenderPassReflection RayTransparency::reflect(const CompileData& compileData)
@@ -83,10 +108,13 @@ void RayTransparency::execute(RenderContext* pRenderContext, const RenderData& r
     var["gVBuffer"] = pVbuffer;
     var["gMotion"] = pMotion;
     var["gTransparent"] = pTransparent;
+    assert(mpTransparencyWhitelist);
+    var["gTransparencyWhitelist"] = mpTransparencyWhitelist;
     LightSettings::get().updateShaderVar(var);
     ShadowSettings::get().updateShaderVar(mpDevice, var);
 
     var["PerFrame"]["gFrameCount"] = mFrameCount++;
+    mpProgram->addDefine("TRANSPARENCY_WHITELIST", mUseTransparencyWhitelist ? "1" : "0");
     mpProgram->addDefine("ALPHA_TEXTURE_LOD", mUseAlphaTextureLOD ? "1" : "0");
     mpProgram->addDefines(ShadowSettings::get().getShaderDefines(*mpScene, renderData.getDefaultTextureDims()));
 
@@ -105,6 +133,25 @@ void RayTransparency::renderUI(Gui::Widgets& widget)
     }
     widget.checkbox("Alpha Texture LOD", mUseAlphaTextureLOD);
 
+    widget.checkbox("Transparency Whitelist", mUseTransparencyWhitelist);
+    if (mUseTransparencyWhitelist && mpScene)
+    {
+        auto g = widget.group("Whitelist");
+        std::string removeEntry;
+        // list all material names of the current scene
+        for (uint mat = 0; mat < mpScene->getMaterialCount(); ++mat)
+        {
+            std::string name = mpScene->getMaterial(MaterialID(mat))->getName();
+            bool isTransparent = mTransparencyWhitelist.find(name) != mTransparencyWhitelist.end();
+            if (g.checkbox(name.c_str(), isTransparent))
+            {
+                if (isTransparent) mTransparencyWhitelist.insert(name);
+                else mTransparencyWhitelist.erase(name);
+                updateWhitelistBuffer();
+            }
+        }
+    }
+
     //LightSettings::get().renderUI(widget);
     //ShadowSettings::get().renderUI(widget);
 }
@@ -113,6 +160,7 @@ void RayTransparency::setScene(RenderContext* pRenderContext, const ref<Scene>& 
 {
     mpScene = pScene;
     setupProgram();
+    updateWhitelistBuffer();
 }
 
 void RayTransparency::setupProgram()
@@ -142,4 +190,36 @@ void RayTransparency::setupProgram()
     // Bind static resources.
     ShaderVar var = mpVars->getRootVar();
     mpSampleGenerator->setShaderData(var);
+}
+
+bool RayTransparency::updateWhitelistBuffer()
+{
+    if (!mpScene) return true;
+    bool any = false;
+
+    // Calculate the number of uint32_t elements needed to store all bits
+    uint32_t materialCount = mpScene->getMaterialCount();
+    uint32_t uintCount = (materialCount + 31) / 32; // Round up to the nearest uint32_t
+
+    std::vector<uint32_t> whitelist(uintCount, 0); // Initialize all bits to 0
+
+    // Pack the boolean values into bits
+    for (uint32_t mat = 0; mat < materialCount; ++mat)
+    {
+        std::string name = mpScene->getMaterial(MaterialID(mat))->getName();
+        bool isTransparent = mTransparencyWhitelist.find(name) != mTransparencyWhitelist.end();
+        any |= isTransparent;
+
+        if (isTransparent)
+        {
+            // Set the corresponding bit in the whitelist
+            uint32_t uintIndex = mat / 32;
+            uint32_t bitIndex = mat % 32;
+            whitelist[uintIndex] |= (1 << bitIndex);
+        }
+    }
+
+    mpTransparencyWhitelist = Buffer::createStructured(mpDevice, sizeof(uint32_t), uintCount, ResourceBindFlags::ShaderResource, Buffer::CpuAccess::None, whitelist.data(), false);
+
+    return any;
 }

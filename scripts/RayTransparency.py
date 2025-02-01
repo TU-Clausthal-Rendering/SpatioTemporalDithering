@@ -9,7 +9,7 @@ def render_graph_RayTransparency():
     g.create_pass('DLSSPass', 'DLSSPass', {'enabled': True, 'outputSize': 'Default', 'profile': 'DLAA', 'motionVectorScale': 'Relative', 'isHDR': True, 'useJitteredMV': False, 'sharpness': 0.3499999940395355, 'exposure': 0.0})
     g.create_pass('UnpackVBuffer', 'UnpackVBuffer', {})
     g.create_pass('RayShadow', 'RayShadow', {})
-    g.create_pass('RayTransparency', 'RayTransparency', {})
+    g.create_pass('RayTransparency', 'RayTransparency', {'useWhitelist': True, 'whitelist': 'CollectInner,Collectible,Smoke,'})
     g.create_pass('ImageEquation0', 'ImageEquation', {'formula': 'float4(I0[xy].rgb+I0[xy].a*I1[xy].rgb, 1.0)', 'format': 'RGBA32Float'})
     g.create_pass('OutputSwitch', 'Switch', {'count': 2, 'selected': 0, 'i0': 'DLSS', 'i1': 'TAA'})
     g.add_edge('UnpackVBuffer.posW', 'RayShadow.posW')

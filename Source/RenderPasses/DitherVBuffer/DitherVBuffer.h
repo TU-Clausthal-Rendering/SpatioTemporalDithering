@@ -89,7 +89,7 @@ private:
     ref<HaltonSamplePattern> mpSamplePattern;
     DitherMode mDitherMode = DitherMode::PerJitter;
     bool mUseAlphaTextureLOD = false; // use lod for alpha lookups
-    bool mUseTransparencyWhitelist = true;
+    bool mUseTransparencyWhitelist = false;
     std::set<std::string> mTransparencyWhitelist;
 };
 
