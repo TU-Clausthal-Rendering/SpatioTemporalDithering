@@ -9,6 +9,13 @@
 #define DITHER_MODE DITHER_MODE_DISABLED
 #endif
 
+#define COVERAGE_CORRECTION_DISABLED 0
+#define COVERAGE_CORRECTION_DLSS 1
+
+#ifndef COVERAGE_CORRECTION
+#define COVERAGE_CORRECTION COVERAGE_CORRECTION_DISABLED
+#endif
+
 StructuredBuffer<uint> gStratifiedIndices;
 StructuredBuffer<uint> gStratifiedLookUpTable;
 

@@ -99,7 +99,7 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     GeometryInstanceID instanceID = getGeometryInstanceID();
     VertexData v = getVertexData(instanceID, PrimitiveIndex(), attribs);
     uint materialID = gScene.getMaterialID(instanceID);
-    
+
     //if(materialID < 111) IgnoreHit();
     // lod
     #if ALPHA_TEXTURE_LOD != 0
@@ -125,30 +125,28 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     }
     #endif
 
+    let material = gScene.materials.getMaterial(materialID);
+    float alpha = material.evalOpacity(gScene.materials, v, lod);
+    #if COVERAGE_CORRECTION == COVERAGE_CORRECTION_DLSS
+    alpha = pow(saturate(alpha), 0.617);
+    #endif
+
     #if DITHER_MODE == DITHER_MODE_DISABLED
     
     #endif
     #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_4X) || (DITHER_MODE == DITHER_MODE_PER_PIXEL_16X)
-    let material = gScene.materials.getMaterial(materialID);
-    float alpha = material.evalOpacity(gScene.materials, v, lod);
     if (alpha < getPixelDitherThreshold(pixel))
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_PER_JITTER
-    let material = gScene.materials.getMaterial(materialID);   
-    float alpha = material.evalOpacity(gScene.materials, v, lod);
     if(!isCovered(pixel, alpha, gSampleIndex, gSampleCount, gFrameCount, v.posW))
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_RUSSIAN_ROULETTE
-    let material = gScene.materials.getMaterial(materialID);   
-    float alpha = material.evalOpacity(gScene.materials, v, lod);
     if(!winRoulette(alpha, gFrameCount, v.posW))
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_PERIODIC
-    let material = gScene.materials.getMaterial(materialID);   
-    float alpha = material.evalOpacity(gScene.materials, v, lod);
     if(!winRotation(pixel, alpha, gFrameCount))
         IgnoreHit();
     #endif

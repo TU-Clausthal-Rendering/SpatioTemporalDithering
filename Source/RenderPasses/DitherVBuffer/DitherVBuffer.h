@@ -54,6 +54,17 @@ public:
         { DitherMode::Periodic, "Periodic" },
     });
 
+    enum class CoverageCorrection : uint32_t
+    {
+        Disabled,
+        DLSS
+    };
+
+    FALCOR_ENUM_INFO(CoverageCorrection, {
+        { CoverageCorrection::Disabled, "Disabled" },
+        { CoverageCorrection::DLSS, "DLSS" },
+    });
+
     FALCOR_PLUGIN_CLASS(DitherVBuffer, "DitherVBuffer", "VBuffer with Dithering options for transparency");
 
     static ref<DitherVBuffer> create(ref<Device> pDevice, const Properties& props) { return make_ref<DitherVBuffer>(pDevice, props); }
@@ -91,6 +102,8 @@ private:
     bool mUseAlphaTextureLOD = false; // use lod for alpha lookups
     bool mUseTransparencyWhitelist = false;
     std::set<std::string> mTransparencyWhitelist;
+    CoverageCorrection mCoverageCorrection = CoverageCorrection::Disabled;
 };
 
 FALCOR_ENUM_REGISTER(DitherVBuffer::DitherMode);
+FALCOR_ENUM_REGISTER(DitherVBuffer::CoverageCorrection);

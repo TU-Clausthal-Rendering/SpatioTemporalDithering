@@ -113,6 +113,7 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     var["PerFrame"]["gSampleCount"] = mpSamplePattern->getSampleCount();
     var["PerFrame"]["gSampleIndex"] = mpSamplePattern->getCurSample();
 
+    mpProgram->addDefine("COVERAGE_CORRECTION", std::to_string(uint32_t(mCoverageCorrection)));
     mpProgram->addDefine("TRANSPARENCY_WHITELIST", mUseTransparencyWhitelist ? "1" : "0");
     mpProgram->addDefine("DITHER_MODE", std::to_string(uint32_t(mDitherMode)));
     mpProgram->addDefine("ALPHA_TEXTURE_LOD", mUseAlphaTextureLOD ? "1" : "0");
@@ -133,6 +134,8 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
     }
     widget.dropdown("Dither", mDitherMode);
     widget.checkbox("Alpha Texture LOD", mUseAlphaTextureLOD);
+
+    widget.dropdown("Coverage Correction", mCoverageCorrection);
 
     widget.checkbox("Transparency Whitelist", mUseTransparencyWhitelist);
     if(mUseTransparencyWhitelist && mpScene)
