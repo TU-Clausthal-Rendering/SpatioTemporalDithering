@@ -94,7 +94,7 @@ float4 main(float2 texC : TEXCOORD) : SV_TARGET0
     // Details here: http://www.gdcvault.com/play/1023521/From-the-Lab-Bench-Real
     // and here: http://cwyman.org/papers/siga16_gazeTrackedFoveatedRendering.pdf
     float3 color = gTexColor.Load(int3(ipos, 0)).rgb;
-    float opacity = gTexOpacity.Load(int3(ipos, 0)).r;
+    bool hasTransparency = gTexOpacity.Load(int3(ipos, 0)).r > 0.0;
     //opacity = 0.5;
     color = RGBToYCgCo(color);
 
@@ -103,7 +103,7 @@ float4 main(float2 texC : TEXCOORD) : SV_TARGET0
     float3 colorMin = color;
     float3 colorMax = color;
     int statRadius = 1;
-    if(opacity < 1.0) statRadius = 3;
+    if(hasTransparency) statRadius = 3;
 
     for(int rx = -statRadius; rx <= statRadius; ++rx) for(int ry = -statRadius; ry <= statRadius; ++ry)
     {
@@ -121,7 +121,7 @@ float4 main(float2 texC : TEXCOORD) : SV_TARGET0
     colorVar *= oneOverNine;
 
     float3 sigma = sqrt(max(0.f, colorVar - colorAvg * colorAvg));
-    if (opacity >= 1.0) // only use variance if we there is no transparency involved
+    if (!hasTransparency) // only use variance if we there is no transparency involved
     {
         // set color min and max based on variance
         colorMin = colorAvg - gColorBoxSigma * sigma;

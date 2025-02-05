@@ -78,7 +78,7 @@ RenderPassReflection DitherTAA::reflect(const CompileData& compileData)
     RenderPassReflection reflection;
     reflection.addInput(kColorIn, "Color-buffer of the current frame");
     reflection.addInput(kMotionVec, "Screen-space motion vectors");
-    reflection.addInput(kOpacity, "Opacity (alpha) buffer of the current frame").flags(RenderPassReflection::Field::Flags::Optional);
+    reflection.addInput(kOpacity, "Opacity mask. 0 = opaque, 1 = transparent").flags(RenderPassReflection::Field::Flags::Optional);
 
     reflection.addOutput(kColorOut, "Anti-aliased color buffer").format(ResourceFormat::RGBA32Float);
     return reflection;

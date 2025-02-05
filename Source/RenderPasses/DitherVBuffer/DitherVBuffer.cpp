@@ -87,7 +87,7 @@ RenderPassReflection DitherVBuffer::reflect(const CompileData& compileData)
     RenderPassReflection reflector;
     reflector.addOutput(kVbuffer, "V-buffer").format(HitInfo::kDefaultFormat);
     reflector.addOutput(kMotion, "Motion vector").format(ResourceFormat::RG32Float).flags(RenderPassReflection::Field::Flags::Optional);
-    reflector.addOutput(kOpacity, "Opacity").format(ResourceFormat::R8Unorm).flags(RenderPassReflection::Field::Flags::Optional);
+    reflector.addOutput(kOpacity, "Opacity Mask (1 = any transparent)").format(ResourceFormat::R8Unorm).flags(RenderPassReflection::Field::Flags::Optional);
     return reflector;
 }
 
