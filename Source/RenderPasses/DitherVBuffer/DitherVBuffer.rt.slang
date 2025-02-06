@@ -178,9 +178,12 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_HASH_GRID
-    float maxDeriv = max(length(dOdx), length(dOdy));
-    float3 posO = getPosO(triangleHit);
-    if(!winHashGrid(alpha, gFrameCount, posO, maxDeriv))
+    //float maxDeriv = max(length(dOdx), length(dOdy));
+    //float3 posO = getPosO(triangleHit);
+    //if(!winHashGrid(alpha, posO, maxDeriv))
+    //    IgnoreHit();
+    float maxDeriv = max(length(ddx), length(ddy));
+    if(!winHashGrid2D(alpha, v.texC, maxDeriv))
         IgnoreHit();
     #endif
 }

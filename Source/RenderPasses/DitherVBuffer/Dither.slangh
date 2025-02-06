@@ -50,11 +50,67 @@ float hash4D(float4 v)
     return hash(float2(hash3D(v.xyz), v.w));
 }
 
-bool winHashGrid(float opacity, uint frameIndex, float3 coord, float maxDeriv)
+int imod4(int v)
+{
+    return (v % 4 + 4) % 4;
+}
+
+bool winHashGrid2D(float opacity, float2 coord, float maxDeriv)
 {
     // from Hashed Alpha Testing
     //float g_HashScale = 1.0;
-    float g_HashScale = 1.0 / 3.0; // subpixel scale (expect ~3*3 = 9 subpixels)
+    float g_HashScale = 1.0 / 4.0; // subpixel scale (expect ~4*4 = 16 subpixels)
+
+    float pixScale = 1.0 / (g_HashScale * maxDeriv);
+
+    // Find two nearest log-discretized noise scales
+    float2 pixScales = float2(
+        exp2(floor(log2(pixScale))),
+        exp2(ceil(log2(pixScale))) 
+        //floor(pixScale),
+        //ceil(pixScale) 
+    );
+
+    // Compute alpha thresholds at our two noise scales
+    float2 alpha = float2(
+        hash(floor(pixScales.x * coord)),
+        hash(floor(pixScales.y * coord))
+    );
+
+    int4 hashPixel = int4(floor(pixScales.x * coord), floor(pixScales.y * coord));
+    int2 stratIndex = int2(
+        ditherMatrix[imod4(hashPixel.x)][imod4(hashPixel.y)],
+        ditherMatrix[imod4(hashPixel.z)][imod4(hashPixel.w)]
+    );
+    // augment alpha for stratified index
+    alpha = (alpha + float2(stratIndex)) / 16.0;
+
+    // Factor to interpolate lerp with
+    float lerpFactor = frac( log2(pixScale) );
+    //float lerpFactor = frac( pixScale );
+    
+    // Interpolate alpha threshold from noise at two scales
+    float x = (1.0 - lerpFactor) * alpha.x + lerpFactor * alpha.y;
+    
+    // Pass into CDF to compute uniformly distrib threshold
+    float a = min(lerpFactor, 1.0 - lerpFactor);
+    float3 cases = float3( 
+        x * x / (2 * a * (1.0 - a)),
+        (x - 0.5 * a) / (1.0 - a),
+        1.0 - ((1.0 - x) * (1.0 - x)/(2.0 * a * (1.0 - a)))
+    );
+
+    float threshold = (x < (1-a)) ? ((x < a) ? cases.x : cases.y) : cases.z;
+    threshold = clamp(threshold, 1e-6, 1.0);
+
+    return opacity >= threshold;
+}
+
+bool winHashGrid(float opacity, float3 coord, float maxDeriv)
+{
+    // from Hashed Alpha Testing
+    //float g_HashScale = 1.0;
+    float g_HashScale = 1.0 / 4.0; // subpixel scale (expect ~4*4 = 16 subpixels)
 
     float pixScale = 1.0 / (g_HashScale * maxDeriv);
 
