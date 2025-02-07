@@ -183,7 +183,7 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     //if(!winHashGrid(alpha, posO, maxDeriv))
     //    IgnoreHit();
     float maxDeriv = max(length(ddx), length(ddy));
-    if(!winHashGrid2D(alpha, v.texC, maxDeriv))
+    if(!winHashGrid2D(alpha, v.texC, maxDeriv, pixel, gFrameCount))
         IgnoreHit();
     #endif
 }

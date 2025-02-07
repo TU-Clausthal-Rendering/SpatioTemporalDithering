@@ -55,7 +55,7 @@ int imod4(int v)
     return (v % 4 + 4) % 4;
 }
 
-bool winHashGrid2D(float opacity, float2 coord, float maxDeriv)
+bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uint frameCount)
 {
     // from Hashed Alpha Testing
     //float g_HashScale = 1.0;
@@ -78,10 +78,9 @@ bool winHashGrid2D(float opacity, float2 coord, float maxDeriv)
     );
 
     int4 hashPixel = int4(floor(pixScales.x * coord), floor(pixScales.y * coord));
-    int2 stratIndex = int2(
-        ditherMatrix[imod4(hashPixel.x)][imod4(hashPixel.y)],
-        ditherMatrix[imod4(hashPixel.z)][imod4(hashPixel.w)]
-    );
+    //int2 stratIndex = int2(ditherMatrix[imod4(hashPixel.x)][imod4(hashPixel.y)], ditherMatrix[imod4(hashPixel.z)][imod4(hashPixel.w)]);
+    //int stratIndex = ditherMatrix[imod4(hashPixel.x)][imod4(hashPixel.y)];
+    int stratIndex = (ditherMatrix[pixel.x % 4][pixel.y % 4] + frameCount) % 16;
     // augment alpha for stratified index
     alpha = (alpha + float2(stratIndex)) / 16.0;
 
