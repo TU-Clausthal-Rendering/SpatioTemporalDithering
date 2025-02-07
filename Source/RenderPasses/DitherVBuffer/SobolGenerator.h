@@ -15,7 +15,7 @@ namespace Falcor
 
         virtual float2 next() override
         {
-            static const float2 kPattern[] =
+            /*static const float2 kPattern[] =
             {
                 float2(-0.46875, -0.46875), // 00
                 float2(-0.15625, -0.28125), // 01
@@ -33,6 +33,25 @@ namespace Falcor
                 float2(-0.21875, 0.28125), // 13
                 float2(0.21875, 0.34375), // 14
                 float2(0.40625, 0.40625), // 15
+            };*/
+            static const float2 kPattern[] =
+            {
+                float2(-0.375, -0.375),
+                float2(-0.125, -0.375),
+                float2(0.125, -0.375),
+                float2(0.375, -0.375),
+                float2(-0.375, -0.125),
+                float2(-0.125, -0.125),
+                float2(0.125, -0.125),
+                float2(0.375, -0.125),
+                float2(-0.375, 0.125),
+                float2(-0.125, 0.125),
+                float2(0.125, 0.125),
+                float2(0.375, 0.125),
+                float2(-0.375, 0.375),
+                float2(-0.125, 0.375),
+                float2(0.125, 0.375),
+                float2(0.375, 0.375),
             };
 
             // permutation based on 4x4 dither matrix

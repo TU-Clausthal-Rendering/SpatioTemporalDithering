@@ -55,6 +55,13 @@ int imod4(int v)
     return (v % 4 + 4) % 4;
 }
 
+float hashDither(float2 v)
+{
+    int x = imod4(int(v.x));
+    int y = imod4(int(v.y));
+    return (ditherMatrix[x][y] + 0.5) / 16.0;
+}
+
 bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uint frameCount)
 {
     // from Hashed Alpha Testing
@@ -63,6 +70,11 @@ bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uin
 
     float pixScale = 1.0 / (g_HashScale * maxDeriv);
 
+    // version without LOD
+    //pixScale = ceil(pixScale);
+    //float threshold = hash((pixScale * coord));
+
+    
     // Find two nearest log-discretized noise scales
     float2 pixScales = float2(
         exp2(floor(log2(pixScale))),
@@ -80,12 +92,14 @@ bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uin
     int4 hashPixel = int4(floor(pixScales.x * coord), floor(pixScales.y * coord));
     //int2 stratIndex = int2(ditherMatrix[imod4(hashPixel.x)][imod4(hashPixel.y)], ditherMatrix[imod4(hashPixel.z)][imod4(hashPixel.w)]);
     //int stratIndex = ditherMatrix[imod4(hashPixel.x)][imod4(hashPixel.y)];
-    int stratIndex = (ditherMatrix[pixel.x % 4][pixel.y % 4] + frameCount) % 16;
+    //int stratIndex = (ditherMatrix[pixel.x % 4][pixel.y % 4] + frameCount) % 16;
+    //int stratIndex = ((pixel.x % 4) + 4 * (pixel.y % 4) + frameCount) % 16;
     // augment alpha for stratified index
-    alpha = (alpha + float2(stratIndex)) / 16.0;
+    //alpha = (alpha + float2(stratIndex)) / 16.0;
 
     // Factor to interpolate lerp with
     float lerpFactor = frac( log2(pixScale) );
+    //lerpFactor = 1.0;
     //float lerpFactor = frac( pixScale );
     
     // Interpolate alpha threshold from noise at two scales
@@ -100,6 +114,18 @@ bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uin
     );
 
     float threshold = (x < (1-a)) ? ((x < a) ? cases.x : cases.y) : cases.z;
+
+    // stratify here
+    //float rng1 = hash3D(float3(GeometryIndex(), PrimitiveIndex() / 2u, InstanceID()));//threshold;//(ditherMatrix[imod4(hashPixel.x)][imod4(hashPixel.y)]) / 16.0;
+    //float rng2 = hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u));
+    //int i = frameCount % 16;
+    //i = ((pixel.x % 4) + 4 * (pixel.y % 4) + frameCount) % 16;
+    //int a0 = int(16 * rng1);
+    //int aplus = 2 * int(0.5 * 16.0 * rng2) + 1;
+    //threshold = (threshold + float((a0 + i * aplus) % 16)) / 16.0;
+
+    
+
     threshold = clamp(threshold, 1e-6, 1.0);
 
     return opacity >= threshold;
