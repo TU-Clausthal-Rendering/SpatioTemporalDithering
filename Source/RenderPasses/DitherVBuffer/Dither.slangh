@@ -21,6 +21,9 @@
 StructuredBuffer<uint> gStratifiedIndices;
 StructuredBuffer<uint> gStratifiedLookUpTable;
 
+Texture3D<float> gDitherTex;
+SamplerState gDitherSampler;
+
 static const int4x4 ditherMatrix = int4x4(
         float4(0, 8, 2, 10),
         float4(12, 4, 14, 6),
@@ -63,10 +66,121 @@ float hashDither(float2 v)
     return (ditherMatrix[x][y] + 0.5) / 16.0;
 }
 
-bool winFractalDither(float opacity, float2 coord, float maxDeriv, uint2 pixel, uint frameCount)
+bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy)
 {
+    float g_Scale = 10.0 / 1.0;
+    float g_SizeVariability = 1.0;
 
-    return true;
+    // adjusted dither code from: https://github.com/runevision/Dither3D/blob/main/Assets/Dither3D/Dither3DInclude.cginc
+    float xRes, yRes, zRes;
+    gDitherTex.GetDimensions(xRes, yRes, zRes);
+    float invXres = 1.0 / xRes; // yRes should be same
+    
+    // The relationship between X resolution, dots per side, and total number of
+    // dots - which is also the Z resolution - is hardcoded in the script that
+    // creates the 3D texture.
+    float dotsPerSide = xRes / 16.0;
+    float dotsTotal = zRes; // or pow(dotsPerSide, 2);
+    float invZres = 1.0 / zRes;
+
+    // Lookup opacity to make dither output have correct output
+    // opacity at different input opacity values.
+    // TODO lookup in ramp
+    //float2 lookup = float2((0.5 * invXres + (1 - invXres) * opacity), 0.5);
+    //opacity = tex2D(_DitherRampTex, lookup).r;
+
+    // Get frequency based on singular value decomposition.
+    // A simpler approach would have been to use fwidth(uv_DitherTex).
+    // However:
+    //  1) fwidth is not accurate and produces axis-aligned biases/artefacts.
+    //  2) We need both the minimum and maximum rate of change.
+    //     These can be along any directions (orthogonal to each other),
+    //     not necessarily aligned with x, y, u or v.
+    //     So we use (a subset of) singular value decomposition to get these.
+    float2x2 matr = { dx, dy };
+    float4 vectorized = float4(dx, dy);
+    float Q = dot(vectorized, vectorized);
+    float R = determinant(matr); //ad-bc
+    float discriminantSqr = max(0, Q*Q-4*R*R);
+    float discriminant = sqrt(discriminantSqr);
+
+    // "freq" here means rate of change of the UV coordinates on the screen.
+    // Something smaller on the screen has a larger rate of change of its
+    // UV coordinates from one pixel to the next.
+    //
+    // The freq variable: (max-freq, min-freq)
+    //
+    // If a surface has non-uniform scaling, or is seen at an angle,
+    // or has UVs that are stretched more in one direction than the other,
+    // the min and max frequency won't be the same.
+    float2 freq = sqrt(float2(Q + discriminant, Q - discriminant) / 2);
+
+    // We define a spacing variable which linearly correlates with
+    // the average distance between dots.
+    // For this dot spacing, we use the smaller frequency, which
+    // corresponds to the largest amount of stretching.
+    // This for example means that dots seen at an angle will be
+    // compressed in one direction rather than enlarged in the other.
+    float spacing = freq.y;
+
+    // Scale the spacing by the specified input (power of two) scale.
+    float scaleExp = exp2(g_Scale);
+    spacing *= scaleExp;
+
+    // We keep the spacing the same regardless of whether we're using
+    // a pattern with more or less dots in it.
+    spacing *= dotsPerSide * 0.125;
+
+    // We produce higher brightness by having the dots be larger
+    // compared to the pattern size (based on a contrast threshold
+    // further down), and lower brightness by having them be smaller.
+    //
+    // If we don't want variable dot sizes, we can keep the dot sizes
+    // approximately constant regardless of brightness by dividing
+    // the spacing by the brightness. This makes both the dots and
+    // the spacing between them larger, the lower the brightness is.
+    // In this case, the two adjustments of dot size cancel out each
+    // other, leaving only the effect on the spacing between the dots.
+    //
+    // Any behavior in between these two is also possible, controlled by
+    // the _SizeVariability input.
+    //
+    // A*pow(B,-1) is the same as A/B, so when _SizeVariability is 0,
+    // we divide the spacing by the brightness.
+    //
+    // A*pow(B,0) is the same as A, so when _SizeVariability is 1,
+    // we leave the spacing alone.
+    //
+    // The "* 2" is there so the mid-size dots keeps constant throughout
+    // the spectrum, rather than the largest-sized dots.
+    // The "+ 0.001" is there to avoid dividing by zero.
+    float brightnessSpacingMultiplier =
+        pow(opacity * 2 + 0.001, -(1 - g_SizeVariability));
+    spacing *= brightnessSpacingMultiplier;
+
+    // Find the power-of-two level that corresponds to the dot spacing.
+    float spacingLog = log2(spacing);
+    int patternScaleLevel = floor(spacingLog); // Fractal level.
+    float f = spacingLog - patternScaleLevel; // Fractional part.
+
+    // Get the UV coordinates in the current fractal level.
+    float2 uv = coord / exp2(patternScaleLevel);
+
+    // Get the third coordinate for the 3D texture lookup.
+    // Each layer along the 3rd dimension in the 3D texture has one more dot.
+    // The first layer we use is the one that has 1/4 of the dots.
+    // The last layer we use is the one with all the dots.
+    float subLayer = lerp(0.25 * dotsTotal, dotsTotal, 1 - f);
+
+    // Texels are half a texel offset from the texture border, so we
+    // need to subtract half a texel. We also normalize to the 0-1 range.
+    subLayer = (subLayer - 0.5) * invZres;
+
+    // Sample the 3D texture.
+    float pattern = gDitherTex.SampleLevel(gDitherSampler, float3(uv, subLayer), 0.0).r;
+
+    // use current opacity as threshold and the dither pattern as value
+    return pattern < opacity;
 }
 
 bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uint frameCount)

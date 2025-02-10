@@ -109,6 +109,9 @@ private:
     std::set<std::string> mTransparencyWhitelist;
     CoverageCorrection mCoverageCorrection = CoverageCorrection::Disabled;
     float mDLSSCorrectionStrength = 1.0;
+
+    ref<Texture> mpFracDitherTex;
+    ref<Sampler> mpFracSampler;
 };
 
 FALCOR_ENUM_REGISTER(DitherVBuffer::DitherMode);

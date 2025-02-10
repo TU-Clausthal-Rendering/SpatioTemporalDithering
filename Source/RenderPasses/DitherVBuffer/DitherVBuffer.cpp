@@ -53,6 +53,13 @@ DitherVBuffer::DitherVBuffer(ref<Device> pDevice, const Properties& props)
     //mpSamplePattern = HaltonSamplePattern::create(16);
     mpSamplePattern.reset(new SobolGenerator());
     createStratifiedBuffers();
+
+    mpFracDitherTex = Texture::createFromFile(mpDevice, "dither/Dither3D_2x2.dds", false, false);
+    Sampler::Desc sd;
+    sd.setFilterMode(Sampler::Filter::Linear, Sampler::Filter::Linear, Sampler::Filter::Linear);
+    sd.setAddressingMode(Sampler::AddressMode::Wrap, Sampler::AddressMode::Wrap, Sampler::AddressMode::Clamp);
+    mpFracSampler = Sampler::create(mpDevice, sd);
+
     // load properties
     for (const auto& [key, value] : props)
     {
@@ -111,6 +118,8 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     var["gOpacity"] = pOpacity;
     var["gStratifiedIndices"] = mpStratifiedIndices;
     var["gStratifiedLookUpTable"] = mpStratifiedLookUpBuffer;
+    var["gDitherTex"] = mpFracDitherTex;
+    var["gDitherSampler"] = mpFracSampler;
     assert(mpTransparencyWhitelist);
     var["gTransparencyWhitelist"] = mpTransparencyWhitelist;
 
