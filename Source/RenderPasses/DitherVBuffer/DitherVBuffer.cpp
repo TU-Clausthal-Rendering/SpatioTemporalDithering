@@ -139,6 +139,7 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     mpProgram->addDefine("TRANSPARENCY_WHITELIST", mUseTransparencyWhitelist ? "1" : "0");
     mpProgram->addDefine("DITHER_MODE", std::to_string(uint32_t(mDitherMode)));
     mpProgram->addDefine("ALPHA_TEXTURE_LOD", mUseAlphaTextureLOD ? "1" : "0");
+    mpProgram->addDefine("CULL_BACK_FACES", mCullBackFaces ? "1" : "0");
 
     uint3 dispatch = uint3(1);
     dispatch.x = pVbuffer->getWidth();
@@ -205,6 +206,8 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
             }
         }
     }
+
+    widget.checkbox("Cull Back Faces", mCullBackFaces);
 }
 
 void DitherVBuffer::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene)

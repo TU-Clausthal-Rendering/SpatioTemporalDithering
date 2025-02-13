@@ -66,6 +66,7 @@ private:
     bool mUseAlphaTextureLOD = false; // use lod for alpha lookups
     bool mUseTransparencyWhitelist = false;
     std::set<std::string> mTransparencyWhitelist;
+    bool mCullBackFaces = true;
 
     ref<HaltonSamplePattern> mpSamplePattern;
 };

@@ -15,6 +15,9 @@ import Utils.Color.ColorHelpers;
 #ifndef ALPHA_TEXTURE_LOD
 #define ALPHA_TEXTURE_LOD 0
 #endif
+#ifndef CULL_BACK_FACES
+#define CULL_BACK_FACES 1
+#endif
 
 #define MIN_VISIBILITY 0.001
 
@@ -171,7 +174,9 @@ void rayGen()
     for(uint i = 0; i < 256; ++i)
     {
         data.rayT = ray.tMax; // overwrite with max t
-        TraceRay(gScene.rtAccel, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
+        uint rayFlags = 0;
+        if (CULL_BACK_FACES) rayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+        TraceRay(gScene.rtAccel, rayFlags, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
         ray.tMin = data.rayT; // set ray t from hitpoint to new start
         if(data.color.w <= MIN_VISIBILITY || ray.tMin >= ray.tMax) break;
     }

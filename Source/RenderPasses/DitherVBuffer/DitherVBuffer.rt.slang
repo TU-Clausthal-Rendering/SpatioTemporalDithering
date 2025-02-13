@@ -15,6 +15,9 @@ import Utils.Color.ColorHelpers;
 #ifndef ALPHA_TEXTURE_LOD
 #define ALPHA_TEXTURE_LOD 0
 #endif
+#ifndef CULL_BACK_FACES
+#define CULL_BACK_FACES 1
+#endif
 
 cbuffer PerFrame
 {
@@ -227,6 +230,8 @@ void rayGen()
 
     RayData data;
     data.minAlphaT = ray.tMax; // no alpha encountered yet
-    //TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_NON_OPAQUE | RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
-    TraceRay(gScene.rtAccel, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
+    uint rayFlags = 0;
+    if (CULL_BACK_FACES) rayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+    // TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_NON_OPAQUE | RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
+    TraceRay(gScene.rtAccel, rayFlags, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
 }

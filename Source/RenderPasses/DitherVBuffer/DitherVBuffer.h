@@ -161,6 +161,7 @@ private:
     ref<Texture> mpNoiseTex;
     ref<Sampler> mpNoiseSampler;
     NoisePattern mNoisePattern = NoisePattern::White;
+    bool mCullBackFaces = true;
 };
 
 FALCOR_ENUM_REGISTER(DitherVBuffer::DitherMode);

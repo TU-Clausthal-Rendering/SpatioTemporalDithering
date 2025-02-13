@@ -83,8 +83,9 @@ float hashDither(float2 v)
 bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x4 cameraProjection)
 {
     float g_Scale = gGridScale;
-    float g_SizeVariability = 0.0;
+    float g_SizeVariability = 1.0;
 
+    
     // adjusted dither code from: https://github.com/runevision/Dither3D/blob/main/Assets/Dither3D/Dither3DInclude.cginc
     float xRes, yRes, zRes;
     gDitherTex.GetDimensions(xRes, yRes, zRes);
@@ -211,7 +212,7 @@ bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x
     subLayer = (subLayer - 0.5) * invZres;
 
     // Sample the 3D texture.
-    float pattern = gDitherTex.SampleLevel(gDitherSampler, float3(uv, 1.0-subLayer), 0.0).r;
+    float pattern = 1.0 - gDitherTex.SampleLevel(gDitherSampler, float3(uv, 1.0-subLayer), 0.0).r;
 
     // use current opacity as threshold and the dither pattern as value
     return pattern < opacity;

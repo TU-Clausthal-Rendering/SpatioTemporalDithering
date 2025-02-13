@@ -117,6 +117,7 @@ void RayTransparency::execute(RenderContext* pRenderContext, const RenderData& r
     mpProgram->addDefine("TRANSPARENCY_WHITELIST", mUseTransparencyWhitelist ? "1" : "0");
     mpProgram->addDefine("ALPHA_TEXTURE_LOD", mUseAlphaTextureLOD ? "1" : "0");
     mpProgram->addDefines(ShadowSettings::get().getShaderDefines(*mpScene, renderData.getDefaultTextureDims()));
+    mpProgram->addDefine("CULL_BACK_FACES", mCullBackFaces ? "1" : "0");
 
     uint3 dispatch = uint3(1);
     dispatch.x = pVbuffer->getWidth();
@@ -152,6 +153,7 @@ void RayTransparency::renderUI(Gui::Widgets& widget)
         }
     }
 
+    widget.checkbox("Cull Back Faces", mCullBackFaces);
     //LightSettings::get().renderUI(widget);
     //ShadowSettings::get().renderUI(widget);
 }
