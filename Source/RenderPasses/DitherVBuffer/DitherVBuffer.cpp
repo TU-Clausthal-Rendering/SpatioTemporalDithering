@@ -128,6 +128,7 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     var["gStratifiedIndices"] = mpStratifiedIndices;
     var["gStratifiedLookUpTable"] = mpStratifiedLookUpBuffer;
     var["gDitherTex"] = mpFracDitherTex;
+    var["gDitherRampTex"] = mpFracDitherRampTex;
     var["gDitherSampler"] = mpFracSampler;
     var["gNoiseTex"] = mpNoiseTex;
     var["gNoiseSampler"] = mpNoiseSampler;
@@ -241,16 +242,17 @@ void DitherVBuffer::setFractalDitherPattern(DitherPattern pattern)
     switch(pattern)
     {
     case DitherPattern::Dither2x2:
-        texname = "dither/Dither3D_2x2.dds";
+        texname = "dither/Dither3D_2x2";
         break;
     case DitherPattern::Dither4x4:
-        texname = "dither/Dither3D_4x4.dds";
+        texname = "dither/Dither3D_4x4";
         break;
     case DitherPattern::Dither8x8:
-        texname = "dither/Dither3D_8x8.dds";
+        texname = "dither/Dither3D_8x8";
         break;
     }
-    mpFracDitherTex = Texture::createFromFile(mpDevice, texname, false, false);
+    mpFracDitherTex = Texture::createFromFile(mpDevice, texname + ".dds", false, false);
+    mpFracDitherRampTex = Texture::createFromFile(mpDevice, texname + "_ramp.dds", false, false);
 }
 
 void DitherVBuffer::setupProgram()

@@ -22,6 +22,7 @@ StructuredBuffer<uint> gStratifiedIndices;
 StructuredBuffer<uint> gStratifiedLookUpTable;
 
 Texture3D<float> gDitherTex;
+Texture2D<float> gDitherRampTex; // converts opacity to threshold for the dither tex
 SamplerState gDitherSampler;
 Texture2D<float> gNoiseTex;
 SamplerState gNoiseSampler;
@@ -84,8 +85,8 @@ bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x
 {
     float g_Scale = gGridScale;
     float g_SizeVariability = 1.0;
+    bool g_InvertPattern = true; // false: holes are round, true: occluders are round
 
-    
     // adjusted dither code from: https://github.com/runevision/Dither3D/blob/main/Assets/Dither3D/Dither3DInclude.cginc
     float xRes, yRes, zRes;
     gDitherTex.GetDimensions(xRes, yRes, zRes);
@@ -100,9 +101,11 @@ bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x
 
     // Lookup opacity to make dither output have correct output
     // opacity at different input opacity values.
-    // TODO lookup in ramp
-    //float2 lookup = float2((0.5 * invXres + (1 - invXres) * opacity), 0.5);
-    //opacity = tex2D(_DitherRampTex, lookup).r;
+    float xRamp, yRamp;
+    gDitherRampTex.GetDimensions(xRamp, yRamp);
+    if(g_InvertPattern) opacity = 1.0 - opacity;
+    float lookup = lerp(0.5, xRamp - 0.5, opacity) / xRamp; // adjust opacity lookup position
+    opacity = gDitherRampTex.SampleLevel(gDitherSampler, float2(lookup, 0.5), 0.0);
 
     #define RADIAL_COMPENSATION 0
     #if RADIAL_COMPENSATION != 0
@@ -212,10 +215,11 @@ bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x
     subLayer = (subLayer - 0.5) * invZres;
 
     // Sample the 3D texture.
-    float pattern = 1.0 - gDitherTex.SampleLevel(gDitherSampler, float3(uv, 1.0-subLayer), 0.0).r;
+    //float pattern = 1.0 - gDitherTex.SampleLevel(gDitherSampler, float3(uv, 1.0-subLayer), 0.0).r;
+    float pattern = gDitherTex.SampleLevel(gDitherSampler, float3(uv, 1.0-subLayer), 0.0).r;
 
-    // use current opacity as threshold and the dither pattern as value
-    return pattern < opacity;
+    if(g_InvertPattern) return pattern > opacity;
+    else return pattern < opacity;
 }
 
 bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uint frameCount)

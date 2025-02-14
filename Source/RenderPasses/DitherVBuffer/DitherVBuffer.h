@@ -159,6 +159,7 @@ private:
     float mGridScale = 0.25f;
 
     ref<Texture> mpFracDitherTex;
+    ref<Texture> mpFracDitherRampTex;
     ref<Sampler> mpFracSampler;
     ref<Texture> mpNoiseTex;
     ref<Sampler> mpNoiseSampler;
