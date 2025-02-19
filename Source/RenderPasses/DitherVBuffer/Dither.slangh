@@ -250,6 +250,7 @@ bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uin
         noise(floor(pixScales.x * coord)),
         noise(floor(pixScales.y * coord))
     );
+    alpha = 1.0 - alpha;
 
     int4 hashPixel = int4(floor(pixScales.x * coord), floor(pixScales.y * coord));
     //int2 stratIndex = int2(ditherMatrix[imod4(hashPixel.x)][imod4(hashPixel.y)], ditherMatrix[imod4(hashPixel.z)][imod4(hashPixel.w)]);

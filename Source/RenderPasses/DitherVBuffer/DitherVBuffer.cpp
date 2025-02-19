@@ -185,7 +185,7 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
     }
     if(mDitherMode == DitherMode::FractalDithering || mDitherMode == DitherMode::HashGrid)
     {
-        widget.var("Grid Scale", mGridScale, 0.01f, 16.0f, 0.01f);
+        widget.var("Grid Scale", mGridScale, 0.0001f, 16.0f, 0.01f);
     }
     if(mDitherMode == DitherMode::HashGrid)
     {
@@ -365,6 +365,10 @@ void DitherVBuffer::createNoisePattern()
         break;
     case NoisePattern::BlueBayer:
         texname = "dither/blue_bayer.dds";
+        break;
+    case NoisePattern::Poisson:
+        texname = "dither/poisson1024.dds";
+        break;
     default:
         assert(false);
     }

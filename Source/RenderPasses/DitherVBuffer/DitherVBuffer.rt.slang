@@ -200,13 +200,15 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     //float3 posO = getPosO(triangleHit);
     //if(!winHashGrid(alpha, posO, maxDeriv))
     //    IgnoreHit();
-    float maxDeriv = max(length(ddx), length(ddy));
-    if(!winHashGrid2D(alpha, v.texC, maxDeriv, pixel, gFrameCount))
+    float2 s = float2(1.0, 1.0);
+    float maxDeriv = max(length(ddx*s), length(ddy*s));
+    if(!winHashGrid2D(alpha, v.texC*s, maxDeriv, pixel, gFrameCount))
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_FRACTAL_DITHERING
     float maxDeriv = max(length(ddx), length(ddy));
-    if (!winFractalDither(alpha, v.texC, ddx, ddy, gScene.camera.data.projMat))
+    float2 s = float2(1.0, 1.0);
+    if (!winFractalDither(alpha, s*v.texC, s*ddx, s*ddy, gScene.camera.data.projMat))
         IgnoreHit();
     #endif
 }
