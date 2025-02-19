@@ -183,6 +183,10 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     if (alpha < getPixelDitherThreshold(pixel))
         IgnoreHit();
     #endif
+    #if (DITHER_MODE == DITHER_PER_PIXEL_4X_ROULETTE)
+    if (alpha < getPixelDitherThresholdPlusRoulette(pixel, gFrameCount, v.posW))
+        IgnoreHit();
+    #endif
     #if DITHER_MODE == DITHER_MODE_PER_JITTER
     if(!isCovered(pixel, alpha, gSampleIndex, gSampleCount, gFrameCount, v.posW))
         IgnoreHit();
@@ -208,7 +212,7 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     #if DITHER_MODE == DITHER_MODE_FRACTAL_DITHERING
     float maxDeriv = max(length(ddx), length(ddy));
     float2 s = float2(1.0, 1.0);
-    if (!winFractalDither(alpha, s*v.texC, s*ddx, s*ddy, gScene.camera.data.projMat))
+    if (!winFractalDither(alpha, s*v.texC, s*ddx, s*ddy, gScene.camera.data.projMat, gFrameCount))
         IgnoreHit();
     #endif
 }

@@ -6,6 +6,7 @@
 #define DITHER_MODE_PERIODIC 5
 #define DITHER_MODE_HASH_GRID 6
 #define DITHER_MODE_FRACTAL_DITHERING 7
+#define DITHER_PER_PIXEL_4X_ROULETTE 8
 
 #ifndef DITHER_MODE
 #define DITHER_MODE DITHER_MODE_DISABLED
@@ -81,7 +82,7 @@ float hashDither(float2 v)
     return (ditherMatrix[x][y] + 0.5) / 16.0;
 }
 
-bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x4 cameraProjection)
+bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x4 cameraProjection, uint frameCount)
 {
     float g_Scale = gGridScale;
     float g_SizeVariability = 1.0;
@@ -218,6 +219,10 @@ bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x
     //float pattern = 1.0 - gDitherTex.SampleLevel(gDitherSampler, float3(uv, 1.0-subLayer), 0.0).r;
     float pattern = gDitherTex.SampleLevel(gDitherSampler, float3(uv, 1.0-subLayer), 0.0).r;
 
+    //float extraRng = hash3D(float3(coord, frameCount));
+    //pattern += (extraRng - 0.5);
+    //pattern = frac(pattern);
+
     if(g_InvertPattern) return pattern > opacity;
     else return pattern < opacity;
 }
@@ -289,7 +294,11 @@ bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uin
 
     
 
+
     threshold = clamp(threshold, 1e-6, 1.0);
+
+    
+
 
     return opacity >= threshold;
 }
@@ -442,4 +451,21 @@ float getPixelDitherThreshold(uint2 pixel)
     );
     return (ditherMatrix[pixel.y][pixel.x] + 0.5) / 16.0;
     #endif
+}
+
+float getPixelDitherThresholdPlusRoulette(uint2 pixel, uint frameIndex, float3 posW)
+{
+    // use random offset to ensure that each primitive uses a different mask
+    uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u))*7919);
+    pixel.x += randomOffset % 4u;
+    pixel.y += randomOffset / 4u;
+
+    pixel = pixel % 2u;
+    float2x2 ditherMatrix = float2x2(
+        float2(0.0, 2.0),
+        float2(3.0, 1.0)
+    );
+    float ditherThreshold = (ditherMatrix[pixel.y][pixel.x] + 0.5) / 4.0;
+    ditherThreshold += hash4D(float4(posW, frameIndex)) * 0.25;
+    return ditherThreshold;
 }

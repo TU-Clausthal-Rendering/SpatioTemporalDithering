@@ -46,7 +46,8 @@ public:
         RussianRoulette,
         Periodic,
         HashGrid,
-        FractalDithering
+        FractalDithering,
+        PerPixel4xPlusRoulette,
     };
 
     FALCOR_ENUM_INFO(DitherMode, {
@@ -58,6 +59,7 @@ public:
         { DitherMode::Periodic, "Periodic" },
         { DitherMode::HashGrid, "HashGrid" },
         { DitherMode::FractalDithering, "FractalDithering" },
+        { DitherMode::PerPixel4xPlusRoulette, "PerPixel4xPlusRoulette" },
     });
 
     enum class DitherPattern : uint32_t
