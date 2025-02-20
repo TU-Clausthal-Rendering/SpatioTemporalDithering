@@ -38,7 +38,7 @@ namespace
     const std::string kOpacity = "opacity";
     const std::string kTransparentColor = "transparent";
 
-    const uint32_t kMaxPayloadSizeBytes = 6 * sizeof(float); 
+    const uint32_t kMaxPayloadSizeBytes = 7 * sizeof(float); 
     const std::string kProgramRaytraceFile = "RenderPasses/DitherVBuffer/DitherVBuffer.rt.slang";
 
     const std::string kUseWhitelist = "useWhitelist";

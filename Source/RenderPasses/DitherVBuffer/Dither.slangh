@@ -430,14 +430,14 @@ bool isCovered(uint2 pixel, float alpha, uint sampleIndex, uint sampleCount, uin
     return false;
 }
 
-float getPixelDitherThreshold(uint2 pixel)
+float getPixelDitherThreshold(uint2 pixel, uint objectOffet)
 {
+    uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u)) * 7919);
+    //if (objectOffset <= 4) randomOffset = objectOffset;
     // use random offset to ensure that each primitive uses a different mask
-    uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u))*7919);
-    pixel.x += randomOffset % 4u;
-    pixel.y += randomOffset / 4u;
-
     #if DITHER_MODE == DITHER_MODE_PER_PIXEL_4X
+    pixel.x += randomOffset % 2u;
+    pixel.y += randomOffset / 2u;
     pixel = pixel % 2u;
     float2x2 ditherMatrix = float2x2(
         float2(0.0, 2.0),
@@ -445,6 +445,8 @@ float getPixelDitherThreshold(uint2 pixel)
     );
     return (ditherMatrix[pixel.y][pixel.x] + 0.5) / 4.0;
     #else // assume 16 x
+    pixel.x += randomOffset % 4u;
+    pixel.y += randomOffset / 4u;
     pixel = pixel % 4u;
     float4x4 ditherMatrix = float4x4(
         float4(0.0, 8.0, 2.0, 10.0),
@@ -456,14 +458,15 @@ float getPixelDitherThreshold(uint2 pixel)
     #endif
 }
 
-float getPixelDitherThresholdPlusRoulette(uint2 pixel, uint frameIndex, float3 posW)
+float getPixelDitherThresholdPlusRoulette(uint2 pixel, uint frameIndex, float3 posW, uint objectOffset)
 {
     uint2 oddPixel = (pixel / 2u) % 2u;
     
     // use random offset to ensure that each primitive uses a different mask
-    uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u))*7919);
-    pixel.x += randomOffset % 4u;
-    pixel.y += randomOffset / 4u;
+    uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u)) * 7919);
+    //if (objectOffset <= 4) randomOffset = objectOffset;
+    pixel.x += randomOffset % 2u; 
+    pixel.y += randomOffset / 2u;
     
     pixel = pixel % 2u;
     float2x2 ditherMatrix = float2x2(
