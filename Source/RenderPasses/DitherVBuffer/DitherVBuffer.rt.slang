@@ -173,7 +173,7 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
 
     #if COVERAGE_CORRECTION == COVERAGE_CORRECTION_DLSS
     float dlssAlpha = saturate(0.0113 + 1.6560 * alpha - 0.8210 * alpha * alpha + 0.1560 * alpha * alpha * alpha);
-    alpha = lerp(alpha, dlssAlpha, gDLSSCorrectionStrength);
+    alpha = lerp(alpha, dlssAlpha, gDLSSCorrectionStrength * 4.0);
     #endif
 
     #if DITHER_MODE == DITHER_MODE_DISABLED
@@ -217,13 +217,52 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     #endif
 }
 
-float2 calcMotionVector(uint2 pixel, uint2 frameDim, TriangleHit triangleHit)
+float2 calcMotionVector(uint2 pixel, uint2 frameDim, TriangleHit triangleHit, bool isTransparent)
 {
     float3 prevPosW = gScene.getPrevPosW(triangleHit);
 
     float2 pixelPos = float2(pixel) + 0.5;
     float4 prevPosH = mul(gScene.camera.data.prevViewProjMatNoJitter, float4(prevPosW, 1.0));
-    return calcMotionVector(pixelPos, prevPosH, frameDim) + float2(gScene.camera.data.jitterX, -gScene.camera.data.jitterY); // Remove camera jitter from motion vector
+
+    float2 prevCrd = prevPosH.xy / prevPosH.w;
+#ifdef FALCOR_FLIP_Y
+    prevCrd *= float2(0.5, 0.5);
+#else
+    prevCrd *= float2(0.5, -0.5);
+#endif
+    prevCrd += 0.5f;
+    float2 normalizedCrd = pixelPos / frameDim;
+    float2 mvec = prevCrd - normalizedCrd;
+    mvec += float2(gScene.camera.data.jitterX, -gScene.camera.data.jitterY); // Remove camera jitter from motion vector
+
+    #if DITHER_MODE == DITHER_PER_PIXEL_4X_ROULETTE
+    if (!isTransparent) return mvec;
+    // Apply dithering to motion vector
+    if(abs(mvec.x) < 1e-4) mvec.x = 0;
+    if(abs(mvec.y) < 1e-4) mvec.y = 0;
+    float2 pixelMvec = mvec * frameDim;
+    float2 pixelMin = floor(pixelMvec * 0.5) * 2.0;
+    float2 pixelMax = ceil(pixelMvec * 0.5) * 2.0;
+    float2 f = frac(pixelMvec * 0.5);
+    //if (f.x < 1e-2) f.x = 0; if (f.y < 1e-2) f.y = 0;
+    //if (f.x > 1 - 1e-2) f.x = 1; if (f.y > 1-1e-2) f.y = 1;
+    float rng = hash3D(float3(pixel, gFrameCount));
+    // choose between min and max based on rng
+    if (rng > f.x)
+    {
+        if((rng - f.x) / (1 - f.x) > f.y) pixelMvec = pixelMin;
+        else pixelMvec = float2(pixelMin.x, pixelMax.y);
+    }
+    else // rng <= f.x
+    {
+        if(rng/f.x > f.y) pixelMvec = float2(pixelMax.x, pixelMin.y);
+        else pixelMvec = pixelMax;
+    }
+    //pixelMvec = round(mvec * frameDim * 0.5) * 2.0; // round to 2x2 grid
+    mvec = pixelMvec / frameDim;
+
+    #endif
+    return mvec;
 }
 
 float computeShadowImpl(uint2 pixel, uint lightIndex, float3 posW, float3 normalW)
@@ -246,7 +285,7 @@ void closestHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersecti
     {
         // accept as 100% opaque hit (due to russian roulette)
         gVBuffer[pixel] = HitInfo(triangleHit).getData();
-        gMotion[pixel] = calcMotionVector(pixel, frameDim, triangleHit);
+        gMotion[pixel] = calcMotionVector(pixel, frameDim, triangleHit, rayData.minAlphaT <= RayTCurrent());
         gOpacity[pixel] = rayData.minAlphaT <= RayTCurrent() ? 1.0 : 0.0;
         return; // fast path if min visibility is not used
     }
@@ -274,7 +313,7 @@ void closestHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersecti
         rayData.color.w = rayData.color.w * alpha; // correct visibility to blend with the last object
         // leave rayT as is, to stop ray
         gVBuffer[pixel] = HitInfo(triangleHit).getData();
-        gMotion[pixel] = calcMotionVector(pixel, frameDim, triangleHit);
+        gMotion[pixel] = calcMotionVector(pixel, frameDim, triangleHit, rayData.minAlphaT <= RayTCurrent());
         gOpacity[pixel] = rayData.minAlphaT <= RayTCurrent() ? 1.0 : 0.0;
     }
     else // full shading

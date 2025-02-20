@@ -3,8 +3,8 @@ from falcor import *
 
 def render_graph_Dither():
     g = RenderGraph('Dither')
-    g.create_pass('VBufferLighting', 'VBufferLighting', {'envMapIntensity': 0.25, 'ambientIntensity': 0.25, 'lightIntensity': 0.5, 'envMapMirror': False})
-    g.create_pass('DitherVBuffer', 'DitherVBuffer', {'useWhitelist': False, 'whitelist': 'Board,CollectInner,Collectible,Smoke,TransparentPlane1,'})
+    g.create_pass('VBufferLighting', 'VBufferLighting', {'envMapIntensity': 0.25, 'ambientIntensity': 0.25, 'lightIntensity': 0.5, 'envMapMirror': True})
+    g.create_pass('DitherVBuffer', 'DitherVBuffer', {'useWhitelist': False, 'whitelist': 'Board,CollectInner,Collectible,Smoke,TransparentPlane1,/root/_materials/Burn,/root/_materials/Fire_Magic,/root/_materials/Healing,/root/_materials/Hit1,/root/_materials/Hit1_001,/root/_materials/Light,/root/_materials/Sadness_water,/root/_materials/Water_drip,/root/_materials/Wirble,/root/_materials/boss_healthbar,/root/_materials/eff_clouds,/root/_materials/effect_Fire,/root/_materials/effect_barrier,/root/_materials/effect_light,/root/_materials/effect_shield,/root/_materials/effect_thunder,Board,CollectInner,Collectible,Smoke,TransparentPlane1,'})
     g.create_pass('ToneMapper', 'ToneMapper', {'outputSize': 'Default', 'useSceneMetadata': True, 'exposureCompensation': 0.0, 'autoExposure': False, 'filmSpeed': 100.0, 'whiteBalance': False, 'whitePoint': 6500.0, 'operator': 'Linear', 'clamp': False, 'whiteMaxLuminance': 1.0, 'whiteScale': 11.199999809265137, 'fNumber': 1.0, 'shutter': 1.0, 'exposureMode': 'AperturePriority'})
     g.create_pass('DLSSPass', 'DLSSPass', {'enabled': True, 'outputSize': 'Default', 'profile': 'DLAA', 'preset': 'Default(CNN)', 'motionVectorScale': 'Relative', 'isHDR': True, 'useJitteredMV': False, 'sharpness': 0.3499999940395355, 'exposure': 0.0})
     g.create_pass('UnpackVBuffer', 'UnpackVBuffer', {})
@@ -15,6 +15,8 @@ def render_graph_Dither():
     g.create_pass('RayReconstructionPass', 'RayReconstructionPass', {})
     g.create_pass('DitherTAA', 'DitherTAA', {'alpha': 0.10000000149011612, 'colorBoxSigma': 1.0})
     g.create_pass('ImageEquation', 'ImageEquation', {'formula': 'float4(I0[xy].rgb+I0[xy].a*I1[xy].rgb, 1.0)', 'format': 'RGBA32Float'})
+    g.create_pass('VideoRecorder', 'VideoRecorder', {})
+    g.create_pass('PathBenchmark', 'PathBenchmark', {})
     g.add_edge('DitherVBuffer.vbuffer', 'VBufferLighting.vbuffer')
     g.add_edge('DitherVBuffer.mvec', 'DLSSPass.mvec')
     g.add_edge('DitherVBuffer.vbuffer', 'UnpackVBuffer.vbuffer')
@@ -39,13 +41,14 @@ def render_graph_Dither():
     g.add_edge('DitherVBuffer.opacity', 'DitherTAA.opacity')
     g.add_edge('DitherVBuffer.mvec', 'DitherTAA.motionVecs')
     g.add_edge('DitherTAA.colorOut', 'OutputSwitch.i1')
-    g.add_edge('DitherVBuffer.transparent', 'RayReconstructionPass.transparent')
     g.add_edge('DitherVBuffer.transparent', 'ImageEquation.I0')
     g.add_edge('VBufferLighting.color', 'ImageEquation.I1')
     g.add_edge('ImageEquation.out', 'DitherTAA.colorIn')
     g.add_edge('ImageEquation.out', 'FSR.color')
     g.add_edge('ImageEquation.out', 'AccumulatePass.input')
     g.add_edge('ImageEquation.out', 'DLSSPass.color')
+    g.add_edge('VideoRecorder', 'DitherVBuffer')
+    g.add_edge('ToneMapper', 'PathBenchmark')
     g.mark_output('ToneMapper.dst')
     return g
 

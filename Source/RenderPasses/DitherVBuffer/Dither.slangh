@@ -248,12 +248,16 @@ bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uin
         //ceil(pixScale) 
     );
 
+    uint2 offset = 0;
+    //offset.x = frameCount % 2u;
+    //offset.y = (frameCount / 2u) % 2u;
+
     // Compute alpha thresholds at our two noise scales
     float2 alpha = float2(
         //hash(floor(pixScales.x * coord)),
         //hash(floor(pixScales.y * coord))
-        noise(floor(pixScales.x * coord)),
-        noise(floor(pixScales.y * coord))
+        noise(floor(pixScales.x * coord) + float2(offset)),
+        noise(floor(pixScales.y * coord) + float2(offset))
     );
     alpha = 1.0 - alpha;
 
@@ -296,7 +300,6 @@ bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uin
 
 
     threshold = clamp(threshold, 1e-6, 1.0);
-
     
 
 
@@ -339,7 +342,7 @@ bool winHashGrid(float opacity, float3 coord, float maxDeriv)
 
     float threshold = (x < (1-a)) ? ((x < a) ? cases.x : cases.y) : cases.z;
     threshold = clamp(threshold, 1e-6, 1.0);
-
+    
     return opacity >= threshold;
 }
 
@@ -455,17 +458,24 @@ float getPixelDitherThreshold(uint2 pixel)
 
 float getPixelDitherThresholdPlusRoulette(uint2 pixel, uint frameIndex, float3 posW)
 {
+    uint2 oddPixel = (pixel / 2u) % 2u;
+    
     // use random offset to ensure that each primitive uses a different mask
     uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u))*7919);
     pixel.x += randomOffset % 4u;
     pixel.y += randomOffset / 4u;
-
+    
     pixel = pixel % 2u;
     float2x2 ditherMatrix = float2x2(
         float2(0.0, 2.0),
         float2(3.0, 1.0)
     );
-    float ditherThreshold = (ditherMatrix[pixel.y][pixel.x] + 0.5) / 4.0;
+    uint2x2 odds = uint2x2(
+        uint2(1, 3),
+        uint2(5, 7)
+    );
+    float ditherThreshold = (ditherMatrix[pixel.y][pixel.x]) / 4.0;
     ditherThreshold += hash4D(float4(posW, frameIndex)) * 0.25;
+    //ditherThreshold += ((frameIndex * odds[oddPixel.x][oddPixel.y]) % 8u) / 8.0 * 0.25;
     return ditherThreshold;
 }
