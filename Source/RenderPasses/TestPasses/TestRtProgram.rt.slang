@@ -51,7 +51,7 @@ struct TestProgram
 #elif MODE == 1
         uint rayType = 0;
 #endif
-        TraceRay(gScene.rtAccel, RAY_FLAG_NONE, 0xff, rayType, rayTypeCount, missIndex, ray, rayData);
+        TraceRay(gScene.rtAccel, RAY_FLAG_NONE, kInstanceCameraParticle, rayType, rayTypeCount, missIndex, ray, rayData);
 
         output[pixel] = float4(rayData.color, 1.f);
     }

@@ -191,6 +191,16 @@ namespace Falcor
             NumericContinuous = 2,
         };
 
+        // Possible orientations for the particle. If particles are enabled, meshes for every direction will be generated 
+        enum class ParticleOrientationMode : uint32_t
+        {
+            None = 0, //No Particle
+            Camera = 1,
+            XY_Plane = 2,
+            YZ_Plane = 3,
+            XZ_Plane = 4,
+        };
+
         struct SDFGridConfig
         {
             SDFGrid::Type implementation = SDFGrid::Type::None;
@@ -285,6 +295,12 @@ namespace Falcor
             bool isStatic = false;              ///< True if group represents static non-instanced geometry.
             bool isDisplaced = false;           ///< True if group uses displacement mapping.
             bool isDoubleSided = false;         ///< True if group is double-sided (disable culling).
+            ParticleOrientationMode particleOrientation = ParticleOrientationMode::None; ///< Stored Orentation of the Particle
+
+            bool isParticle() const
+            {
+                return particleOrientation != ParticleOrientationMode::None;
+            }
         };
 
         /** Scene graph node.
@@ -298,6 +314,19 @@ namespace Falcor
             float4x4 transform;         ///< The node's transformation matrix.
             float4x4 meshBind;          ///< For skinned meshes. Mesh world space transform at bind time.
             float4x4 localToBindSpace;  ///< For bones. Skeleton to bind space transformation. AKA the inverse-bind transform.
+        };
+
+        /** Metadata for a particle system
+        */
+        struct ParticleSystem
+        {
+            std::string name = "";
+            uint numberParticles = 1;
+            float3 spawnPosition = float3(0, -10, 0);
+            float intitialRadius = 1.f;
+            std::array<MeshID, 4> meshIDs;
+            bool active = false;
+            uint particleBufferOffset = 0;
         };
 
         /** Full set of required data to create a scene object.
@@ -338,6 +367,8 @@ namespace Falcor
             std::vector<uint32_t> meshIndexData;                    ///< Vertex indices for all meshes in either 32-bit or 16-bit format packed tightly, decided per mesh.
             std::vector<PackedStaticVertexData> meshStaticData;     ///< Vertex attributes for all meshes in packed format.
             std::vector<SkinningVertexData> meshSkinningData;       ///< Additional vertex attributes for skinned meshes.
+
+            std::vector<ParticleSystem> particleSystems;            ///<List of particle system descriptions
 
             // Curve data
             std::vector<CurveDesc> curveDesc;                       ///< List of curve descriptors.
@@ -1100,6 +1131,12 @@ namespace Falcor
 
         std::string getScript(const std::string& sceneVar);
 
+        std::vector<ParticleSystem>& getParticleSystem() { return mParticleSystems; }
+
+        /** Gets the particle point buffer used by the particle system
+        */
+        const ref<Buffer>& getParticlePointsBuffer() const { return mpParticlePointBuffer; }
+
     private:
         friend class AnimationController;
         friend class AnimatedVertexCache;
@@ -1208,6 +1245,7 @@ namespace Falcor
         UpdateFlags updateMaterials(bool forceUpdate);
         UpdateFlags updateGeometry(RenderContext* pRenderContext, bool forceUpdate);
         UpdateFlags updateProceduralPrimitives(bool forceUpdate);
+        UpdateFlags updateParticles(RenderContext* pRenderContext, bool forceUpdate);
         UpdateFlags updateRaytracingAABBData(bool forceUpdate);
         UpdateFlags updateDisplacement(RenderContext* pRenderContext, bool forceUpdate);
         UpdateFlags updateSDFGrids(RenderContext* pRenderContext);
@@ -1277,6 +1315,12 @@ namespace Falcor
         uint32_t mSDFGridMaxLODCount;                               ///< The max LOD count of any SDF grid.
         SDFGridConfig mSDFGridConfig;                               ///< SDF grid configuration.
         SDFGridConfig mPrevSDFGridConfig;
+
+        //Particles
+        std::vector<ParticleSystem> mParticleSystems;               ///< List of particle systems
+        ref<ComputePass> mpUpdateParticlesPass;                     ///< Compute pass to update the particles from the point buffer
+        ref<Buffer> mpParticlePointBuffer;                          ///< GPU Buffer for particle Points. These will be triangalized and stored in a Index and Vertex buffer
+        bool mParticlesMoved = false;                               ///< Flag indicating that particles were moved since last frame.
 
         // Custom primitives
         std::vector<CustomPrimitiveDesc> mCustomPrimitiveDesc;      ///< Copy of custom primitive data GPU buffer (mpCustomPrimitivesBuffer).
@@ -1362,6 +1406,7 @@ namespace Falcor
         // Raytracing data
         UpdateMode mTlasUpdateMode = UpdateMode::Rebuild;   ///< How the TLAS should be updated when there are changes in the scene.
         UpdateMode mBlasUpdateMode = UpdateMode::Refit;     ///< How the BLAS should be updated when there are changes to meshes.
+        UpdateMode mBlasParticleUpdateMode = UpdateMode::Rebuild;  ///< How the particle BLAS should be updated when there are changes to meshes.
 
         std::vector<RtInstanceDesc> mInstanceDescs;         ///< Shared between TLAS builds to avoid reallocating CPU memory.
 
@@ -1400,6 +1445,7 @@ namespace Falcor
             bool hasDynamicMesh = false;                    ///< Whether the BLAS contains a skinned or vertex-animated mesh, which means the BLAS may need to be updated.
             bool hasDynamicCurve = false;                   ///< Whether the BLAS contains an animated curve cache, which means the BLAS may need to be updated.
             bool useCompaction = false;                     ///< Whether the BLAS should be compacted after build.
+            bool isParticle = false;                        ///< For update mode
             UpdateMode updateMode = UpdateMode::Refit;      ///< Update mode this BLAS was created with.
 
             bool hasDynamicGeometry() const

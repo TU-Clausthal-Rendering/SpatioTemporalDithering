@@ -434,6 +434,17 @@ namespace Falcor
         */
         void setCachedMeshes(std::vector<CachedMesh>&& cachedMeshes);
 
+        //Particles
+
+        /** Adds a particle system. Number of elements cannot be changed later. The sytem is initialized as two meshes with the particle data.
+            One mesh should always face the camera, the other is a 3D cross for non direct purposes. All particles are initialized at the same world space point
+        * \param name name for the particle system
+        * \param materialID ID of the material for the particle
+        * \param numParticles maximal number of particles the system should have. All particles are always initialized
+        * \param spawnPosition initial position for the particles
+        */
+        void addParticleSystem(const std::string name, const ref<Material>& pMaterial, const uint numParticles, const float3 spawnPosition = float3(0, -10, 0));
+
         // Custom primitives
 
         /** Add an AABB defining a custom primitive.
@@ -546,6 +557,8 @@ namespace Falcor
             \return Returns the first light with a matching name or nullptr if none was found.
         */
         ref<Light> getLight(const std::string& name) const;
+
+        bool removeLight(const std::string& name);
 
         /** Add a light source
             \param pLight The light object.
@@ -688,6 +701,7 @@ namespace Falcor
             bool isFrontFaceCW = false;             ///< Indicate whether front-facing side has clockwise winding in object space.
             bool isDisplaced = false;               ///< True if mesh has displacement map.
             bool isAnimated = false;                ///< True if mesh has vertex animations.
+            Scene::ParticleOrientationMode particleOrentation = Scene::ParticleOrientationMode::None; ///< Mode for particle orientation. None means that this is no particle
             AABB boundingBox;                       ///< Mesh bounding-box in object space.
             std::set<NodeID> instances;             ///< IDs of all nodes that instantiate this mesh.
 
@@ -717,6 +731,11 @@ namespace Falcor
             bool isDynamic() const
             {
                 return isSkinned() || isAnimated;
+            }
+
+            bool isParticle() const
+            {
+                return particleOrentation != Scene::ParticleOrientationMode::None;
             }
         };
 

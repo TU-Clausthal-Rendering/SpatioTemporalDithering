@@ -75,7 +75,7 @@ HitInfo traceScatterRay(inout ScatterRayData rayData, float3 origin, float3 dire
     ray.TMax = kRayTMax;
 
     uint rayFlags = 0;
-    TraceRay(gScene.rtAccel, rayFlags, 0xff , 0 , rayTypeCount, 0 , ray, rayData);
+    TraceRay(gScene.rtAccel, rayFlags, kInstanceCameraParticle , 0 , rayTypeCount, 0 , ray, rayData);
     return HitInfo(rayData.packedHitInfo);
 }
 
@@ -130,7 +130,7 @@ float traceShadowRay(float3 origin, float3 dir, float distance, inout SampleGene
     ShadowRayData rayData;
     rayData.sg = sg;
     rayData.visible = 1.0;    // accumulated visibility
-    TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_NON_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xff /* instanceInclusionMask */, 1 /* hitIdx */, rayTypeCount, 1 /* missIdx */, ray, rayData);
+    TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_NON_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, kInstanceCameraParticle /* instanceInclusionMask */, 1 /* hitIdx */, rayTypeCount, 1 /* missIdx */, ray, rayData);
     
     sg = rayData.sg;
     return rayData.visible;

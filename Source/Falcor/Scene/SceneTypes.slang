@@ -342,6 +342,13 @@ struct DynamicCurveVertexData
     float3 position;    ///< Position.
 };
 
+/** Custom Particle Data. Is used to generate Triangle based particles
+ */
+struct ParticlePointDesc {
+    float3 position; ///< World Postion
+    float radius;    ///< Size of particle
+};
+
 /** Custom primitive data.
     The custom primitives are currently mapped 1:1 to the list of custom primitive AABBs.
 */

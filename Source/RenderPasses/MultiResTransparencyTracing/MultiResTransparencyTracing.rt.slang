@@ -163,8 +163,8 @@ float TraceShadowRay(float3 origin, LightData l)
     }
 
     // prepare ray query (do all computations in the "any-hit shader")
-    RayQuery<RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_FORCE_NON_OPAQUE |  RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> q;
-    q.TraceRayInline(gScene.rtAccel, RAY_FLAG_NONE, 0xff /* instanceInclusionMask */, ray);
+    RayQuery<RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_FORCE_NON_OPAQUE | RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> q;
+    q.TraceRayInline(gScene.rtAccel, RAY_FLAG_NONE, kInstanceCameraParticle /* instanceInclusionMask */, ray);
     float transmit = 1.0;
 
     while(q.Proceed())
@@ -327,7 +327,7 @@ void rayGen()
     for (uint i = 0; i < 64; ++i)
     {
 
-        TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_OPAQUE, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
+        TraceRay(gScene.rtAccel, RAY_FLAG_FORCE_OPAQUE, kInstanceCameraParticle, 0, rayTypeCount, 0, ray.toRayDesc(), data);
         ray.tMin = data.distance; // update for next ray
 
         // for now take and write this hitpoint

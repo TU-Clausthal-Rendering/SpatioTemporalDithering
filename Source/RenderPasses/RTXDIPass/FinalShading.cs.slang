@@ -84,7 +84,7 @@ struct FinalShading
                 // Create a DXR 1.1 query object to trace a ray (the <1> means use alpha testing)
                 SceneRayQuery<1> rayQuery;
                 const Ray ray = Ray(sd.computeNewRayOrigin(), dir, 0.f, distance);
-                if (!rayQuery.traceVisibilityRay(ray, RAY_FLAG_NONE, 0xff))
+                if (!rayQuery.traceVisibilityRay(ray, RAY_FLAG_NONE, kInstanceCameraParticle))
                 {
                     valid = false;
                 }

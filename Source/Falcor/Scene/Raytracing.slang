@@ -28,6 +28,7 @@
 import Utils.Attributes;
 import Rendering.Materials.TexLODHelpers;
 __exported import Scene.Shading;
+__exported import Scene.RaytracingInstanceMaskHelper;
 
 cbuffer DxrPerFrame
 {

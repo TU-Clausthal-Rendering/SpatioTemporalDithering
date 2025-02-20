@@ -184,7 +184,7 @@ void rayGen()
     // Trace ray.
     const Ray ray = gGBufferRT.generateRay(launchIndex);
     RayData rayData;
-    TraceRay(gScene.rtAccel, GBufferRT::kRayFlags, 0xff /* instanceInclusionMask */, 0 /* hitIdx */, rayTypeCount, 0 /* missIdx */, ray.toRayDesc(), rayData);
+    TraceRay(gScene.rtAccel, GBufferRT::kRayFlags, kInstanceCameraParticle /* instanceInclusionMask */, 0 /* hitIdx */, rayTypeCount, 0 /* missIdx */, ray.toRayDesc(), rayData);
 
     gGBufferRT.writeAux(launchIndex, ray);
 

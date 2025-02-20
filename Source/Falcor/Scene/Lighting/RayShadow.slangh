@@ -76,7 +76,8 @@ RayDesc ray
     float visibilityCutoff = 0.01; // visibility below this threshold is considered to be zero
     
     RayQuery < RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH > rayQuery;
-    rayQuery.TraceRayInline(gScene.rtAccel, RAY_FLAG_NONE, 0xff, ray);
+    const uint instanceMask = getBestParticleShadowPlane(ray.Direction);
+    rayQuery.TraceRayInline(gScene.rtAccel, RAY_FLAG_NONE, instanceMask, ray);
     while (rayQuery.Proceed())
     {
         if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)

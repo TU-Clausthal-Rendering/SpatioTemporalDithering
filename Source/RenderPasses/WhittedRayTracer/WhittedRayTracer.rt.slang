@@ -218,7 +218,7 @@ bool traceShadowRay(float3 origin, float3 dir, float distance)
 
     ShadowRayData rayData;
     rayData.visible = false; // Set to true by miss shader if ray is not terminated before.
-    TraceRay(gScene.rtAccel, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, 0xff /* instanceInclusionMask */, 1 /* hitIdx */, rayTypeCount, 1 /* missIdx */, ray, rayData);
+    TraceRay(gScene.rtAccel, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, kInstanceCameraParticle /* instanceInclusionMask */, 1 /* hitIdx */, rayTypeCount, 1 /* missIdx */, ray, rayData);
 
     return rayData.visible;
 }
@@ -235,7 +235,7 @@ void traceScatterRay(inout ScatterRayData rayData)
     ray.TMax = kRayTMax;
 
     uint rayFlags = 0;      // TODO: Set cull mode from the app.
-    TraceRay(gScene.rtAccel, rayFlags, 0xff /* instanceInclusionMask */, 0 /* hitIdx */, rayTypeCount, 0 /* missIdx */, ray, rayData);
+    TraceRay(gScene.rtAccel, rayFlags, kInstanceCameraParticle /* instanceInclusionMask */, 0 /* hitIdx */, rayTypeCount, 0 /* missIdx */, ray, rayData);
 }
 
 /** Evaluates the direct illumination from all analytic lights.

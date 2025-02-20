@@ -722,6 +722,150 @@ namespace Falcor
         mSceneData.cachedMeshes = std::move(cachedMeshes);
     }
 
+    void SceneBuilder::addParticleSystem(const std::string name, const ref<Material>& pMaterial, const uint numParticles, const float3 spawnPosition)
+    {
+        const float initialRadius = 1.f;
+
+        std::array<MeshSpec, 4> specs; //One spec/mesh for each orientation
+
+        //Set mesh info that is shared between all orientation specs
+        for (uint i = 0; i < specs.size(); i++)
+        {
+            auto& spec = specs[i];
+            spec.topology = Vao::Topology::TriangleList;
+            spec.materialId = addMaterial(pMaterial);
+            spec.isFrontFaceCW = true;
+            // spec.skeletonNodeID = {NodeID::Invalid()}; //Not used
+
+            // Set properties
+            spec.isStatic = false;
+            //spec.isOpaque = false;                    // Particles are usually not opaque
+            spec.use16BitIndices = false;             // TODO could make sense to switch to 16 bits as the full 32 are probably never needed
+            spec.isAnimated = true;                   //Enable animation for motion vectors
+
+            spec.particleOrentation = (Scene::ParticleOrientationMode)(i + 1u);
+        }
+        //Set names. Same order as enum (Scene::ParticleOrientationMode)
+        specs[0].name = name + "_cam";
+        specs[1].name = name + "_XY";
+        specs[2].name = name + "_YZ";
+        specs[3].name = name + "_XZ";
+
+        //Create initial vertex and index data
+
+        //Helper to create the quad
+        auto createStaticQuad = [](std::array<float3, 4> positions) {
+            std::array<StaticVertexData, 4> quad;
+            // Position
+            quad[0].position = positions[0];    // Top left
+            quad[1].position = positions[1];    // Top Right
+            quad[2].position = positions[2];    // Bottom Right
+            quad[3].position = positions[3];    // Bottom Left
+            // TexCoord
+            quad[0].texCrd = float2(0);      // Top left
+            quad[1].texCrd = float2(0, 1);    // Top Right
+            quad[2].texCrd = float2(1, 1);   // Bottom Right
+            quad[3].texCrd = float2(1, 0);    // Bottom Left
+            // Normal, tangent
+            float3 normal = math::normalize(math::cross(quad[1].position - quad[0].position, quad[2].position - quad[0].position));
+            float4 tangent = float4(math::normalize(quad[1].position - quad[0].position), 1);
+            for (uint j = 0; j < 4; j++)
+            {
+                quad[j].normal = normal;
+                quad[j].tangent = tangent;
+            }
+
+            return quad;
+            };
+
+        //XY quad
+        std::array<float3, 4> positions;
+        positions[0] = spawnPosition + float3(-initialRadius, initialRadius, 0);         // Top left
+        positions[1] = spawnPosition + float3(initialRadius, initialRadius, 0);         // Top Right
+        positions[2] = spawnPosition + float3(initialRadius, -initialRadius, 0);         // Bottom Right
+        positions[3] = spawnPosition + float3(-initialRadius, -initialRadius, 0);       // Bottom Left
+        std::array<StaticVertexData, 4> quadXY = createStaticQuad(positions);
+        //YZ quad
+        positions[0] = spawnPosition + float3(0, initialRadius, -initialRadius);  // Top left
+        positions[1] = spawnPosition + float3(0, initialRadius, initialRadius);   // Top Right
+        positions[2] = spawnPosition + float3(0, -initialRadius, initialRadius);  // Bottom Right
+        positions[3] = spawnPosition + float3(0, -initialRadius, -initialRadius); // Bottom Left
+        std::array<StaticVertexData, 4> quadYZ = createStaticQuad(positions);
+        //XZ quad
+        positions[0] = spawnPosition + float3(-initialRadius, 0, initialRadius);   // Top left
+        positions[1] = spawnPosition + float3(initialRadius, 0, initialRadius);   // Top Right
+        positions[2] = spawnPosition + float3(initialRadius, 0, -initialRadius);  // Bottom Right
+        positions[3] = spawnPosition + float3(-initialRadius, 0, -initialRadius); // Bottom Left
+        std::array<StaticVertexData, 4> quadXZ = createStaticQuad(positions);
+
+        //Fill in initial data for all meshes
+        for (uint ori = 0; ori < specs.size(); ori++)
+        {
+            auto& spec = specs[ori];
+            spec.vertexCount = 4u * numParticles;
+            spec.staticVertexCount = spec.vertexCount; // TODO correct?
+            spec.indexCount = 6u * numParticles;
+            spec.indexData.resize(spec.indexCount);
+            spec.staticData.resize(spec.vertexCount);
+            for (uint i = 0; i < numParticles; i++)
+            {
+                // Copy data
+                const uint verticesOffset = (i * 4u);
+                for (uint j = 0; j < 4; j++)
+                {
+                    switch (ori)
+                    {
+                    case 0:
+                    case 1:
+                        spec.staticData[verticesOffset + j] = quadXY[j];
+                        break;
+                    case 2:
+                        spec.staticData[verticesOffset + j] = quadYZ[j];
+                        break;
+                    case 3:
+                        spec.staticData[verticesOffset + j] = quadXZ[j];
+                    default:
+                        break;
+                    }
+                }
+
+                const uint idxOff = i * 6u;
+                spec.indexData[idxOff + 0] = verticesOffset;
+                spec.indexData[idxOff + 1] = verticesOffset + 1;
+                spec.indexData[idxOff + 2] = verticesOffset + 2;
+                spec.indexData[idxOff + 3] = verticesOffset;
+                spec.indexData[idxOff + 4] = verticesOffset + 2;
+                spec.indexData[idxOff + 5] = verticesOffset + 3;
+            }
+        }
+
+        //Create Mesh instances
+        std::array<MeshID, 4> meshIDs;
+        for (uint i = 0; i < specs.size(); i++)
+        {
+            mMeshes.push_back(specs[i]);
+            meshIDs[i] = MeshID(mMeshes.size() - 1);
+
+            if (mMeshes.size() > std::numeric_limits<uint32_t>::max())
+            {
+                throw RuntimeError("Trying to build a scene that exceeds supported number of meshes");
+            }
+
+            Node node = { specs[i].name, float4x4::identity(), float4x4::identity() };
+            NodeID nodeID = addNode(node);
+            addMeshInstance(nodeID, meshIDs[i]);
+        }
+
+        //Add particle system meta data
+        Scene::ParticleSystem partSys{};
+        partSys.name = name;
+        partSys.numberParticles = numParticles;
+        partSys.spawnPosition = spawnPosition;
+        partSys.meshIDs = meshIDs;
+
+        mSceneData.particleSystems.push_back(partSys);
+    }
+
     void SceneBuilder::addCustomPrimitive(uint32_t userID, const AABB& aabb)
     {
         // Currently each custom primitive has exactly one AABB. This may change in the future.
@@ -909,6 +1053,27 @@ namespace Falcor
             if (pLight->getName() == name) return pLight;
         }
         return nullptr;
+    }
+
+    bool SceneBuilder::removeLight(const std::string& name)
+    {
+        bool foundLight = false;
+        //Search the light
+        uint it;
+        for (it = 0; it < mSceneData.lights.size(); it++)
+        {
+            auto& pLight = mSceneData.lights[it];
+            if (pLight->getName() == name)
+            {
+                foundLight = true;
+                break;
+            }
+        }
+
+        if (foundLight)
+            mSceneData.lights.erase(mSceneData.lights.begin() + it);
+
+        return foundLight;
     }
 
     LightID SceneBuilder::addLight(const ref<Light>& pLight)
@@ -1302,6 +1467,16 @@ namespace Falcor
             if (cache.tessellationMode != CurveTessellationMode::LinearSweptSphere)
             {
                 auto& mesh = mMeshes[cache.geometryID.get()];
+                FALCOR_ASSERT(!mesh.isDynamic());
+                mesh.isAnimated = true;
+                mesh.prevVertexCount = mesh.staticVertexCount;
+            }
+        }
+        for (auto& ps : mSceneData.particleSystems)
+        {
+            for (uint i = 0; i < ps.meshIDs.size(); i++)
+            {
+                auto& mesh = mMeshes[ps.meshIDs[i].get()];
                 FALCOR_ASSERT(!mesh.isDynamic());
                 mesh.isAnimated = true;
                 mesh.prevVertexCount = mesh.staticVertexCount;
@@ -1770,6 +1945,7 @@ namespace Falcor
         meshList staticDoubleSided;
         meshList staticDisplacedMeshes;
         meshList dynamicDisplacedMeshes;
+        meshList particleMeshes;
         size_t nonInstancedMeshCount = 0;
 
         for (MeshID meshID{ 0 }; meshID.get() < (uint32_t)mMeshes.size(); ++meshID)
@@ -1786,6 +1962,7 @@ namespace Falcor
             if (pMaterial->isDoubleSided()) mesh.isDoubleSided = true;
 
             if (mesh.isStatic && mesh.isDisplaced) staticDisplacedMeshes.push_back(meshID);
+            else if (mesh.isParticle()) particleMeshes.push_back(meshID);
             else if (mesh.isStatic && mesh.isDoubleSided) staticDoubleSided.push_back(meshID);
             else if(mesh.isStatic) staticMeshes.push_back(meshID);
             else if (!mesh.isStatic && mesh.isDisplaced) dynamicDisplacedMeshes.push_back(meshID);
@@ -1796,7 +1973,7 @@ namespace Falcor
         // Validate that mesh counts add up.
         size_t nonInstancedDynamicMeshCount = 0;
         for (const auto& it : nodeToMeshList) nonInstancedDynamicMeshCount += it.second.size();
-        FALCOR_ASSERT(staticMeshes.size() + staticDoubleSided.size() + staticDisplacedMeshes.size() + dynamicDisplacedMeshes.size() + nonInstancedDynamicMeshCount == nonInstancedMeshCount);
+        FALCOR_ASSERT(staticMeshes.size() + staticDoubleSided.size() + staticDisplacedMeshes.size() + dynamicDisplacedMeshes.size() + particleMeshes.size() + nonInstancedDynamicMeshCount == nonInstancedMeshCount);
 
         // Classify instanced meshes.
         // The instanced meshes are grouped based on their lists of instances.
@@ -1852,6 +2029,7 @@ namespace Falcor
         logInfo("Found {} displaced non-instanced meshes, arranged in 1 mesh group.", staticDisplacedMeshes.size());
         logInfo("Found {} dynamic non-instanced meshes, arranged in {} mesh groups.", nonInstancedDynamicMeshCount, nodeToMeshList.size());
         logInfo("Found {} instanced meshes, arranged in {} mesh groups.", instancedMeshCount, instancesToMeshList.size());
+        logInfo("Found {} particle spawner, arranged in {} mesh groups.", particleMeshes.size() / 4, particleMeshes.size());
 
         // Build final result. Format is a list of Mesh ID's per mesh group.
 
@@ -1859,11 +2037,11 @@ namespace Falcor
         {
             if (!splitGroup)
             {
-                mMeshGroups.push_back({ meshes, isStatic, isDisplaced, isDoubleSided });
+                mMeshGroups.push_back({ meshes, isStatic, isDisplaced, isDoubleSided, mMeshes[meshes[0].get()].particleOrentation});
             }
             else
             {
-                for (const auto& meshID : meshes) mMeshGroups.push_back(MeshGroup{ meshList({ meshID }), isStatic, isDisplaced, isDoubleSided });
+                for (const auto& meshID : meshes) mMeshGroups.push_back(MeshGroup{ meshList({ meshID }), isStatic, isDisplaced, isDoubleSided , mMeshes[meshID.get()].particleOrentation });
             }
         };
 
@@ -1900,6 +2078,12 @@ namespace Falcor
         if (!dynamicDisplacedMeshes.empty())
         {
             addMeshes(dynamicDisplacedMeshes, false, true, false, is_set(mFlags, Flags::RTDontMergeDynamic));
+        }
+
+        // Each particle mesh goes in a single group
+        if (!particleMeshes.empty())
+        {
+            addMeshes(particleMeshes, false, false, true, true); // Always split
         }
 
         for(const auto& it : doubleSidedInstancesToMeshList)
@@ -2412,6 +2596,15 @@ namespace Falcor
                 prevOffset += mesh.prevVertexCount;
             }
         }
+        for (auto& ps : mSceneData.particleSystems)
+        {
+            for (uint i = 0; i < ps.meshIDs.size(); i++)
+            {
+                auto& mesh = mMeshes[ps.meshIDs[i].get()];
+                mesh.prevVertexOffset = prevOffset;
+                prevOffset += mesh.prevVertexCount;
+            }
+        }
     }
 
     void SceneBuilder::createCurveGlobalBuffers()
@@ -2900,6 +3093,7 @@ namespace Falcor
         sceneBuilder.def_property("cameraSpeed", &SceneBuilder::getCameraSpeed, &SceneBuilder::setCameraSpeed);
         sceneBuilder.def("importScene", &SceneBuilder::import, "path"_a, "dict"_a = pybind11::dict());
         sceneBuilder.def("addTriangleMesh", &SceneBuilder::addTriangleMesh, "triangleMesh"_a, "material"_a);
+        sceneBuilder.def("addParticleSystem", &SceneBuilder::addParticleSystem, "name"_a, "material"_a, "numParticles"_a, "spawnPosition"_a = float3(0, -10, 0));
         sceneBuilder.def("addSDFGrid", &SceneBuilder::addSDFGrid, "sdfGrid"_a, "material"_a);
         sceneBuilder.def("addMaterial", &SceneBuilder::addMaterial, "material"_a);
         sceneBuilder.def("replaceMaterial", &SceneBuilder::replaceMaterial, "material"_a, "replacement"_a);
@@ -2912,6 +3106,7 @@ namespace Falcor
         sceneBuilder.def("getVolume", &SceneBuilder::getGridVolume, "name"_a); // PYTHONDEPRECATED
         sceneBuilder.def("addLight", &SceneBuilder::addLight, "light"_a);
         sceneBuilder.def("getLight", &SceneBuilder::getLight, "name"_a);
+        sceneBuilder.def("removeLight", &SceneBuilder::removeLight, "name"_a);
         sceneBuilder.def("loadLightProfile", &SceneBuilder::loadLightProfile, "filename"_a, "normalize"_a = true);
         sceneBuilder.def("addCamera", &SceneBuilder::addCamera, "camera"_a);
         sceneBuilder.def("addAnimation", &SceneBuilder::addAnimation, "animation"_a);

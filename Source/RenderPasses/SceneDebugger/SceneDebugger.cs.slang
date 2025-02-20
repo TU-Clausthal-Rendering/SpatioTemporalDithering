@@ -69,7 +69,7 @@ struct SceneDebugger
         SceneRayQuery<kUseAlphaTest> sceneRayQuery;
         HitInfo hit;
         float hitT;
-        if (sceneRayQuery.traceRay(ray, hit, hitT, RAY_FLAG_NONE, 0xff))
+        if (sceneRayQuery.traceRay(ray, hit, hitT, RAY_FLAG_NONE, kInstanceCameraParticle))
         {
             color = handleHit(pixel, ray.origin, ray.dir, hit);
         }

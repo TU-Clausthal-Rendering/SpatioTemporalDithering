@@ -128,7 +128,7 @@ void rayGen()
         TraceRay(
             gScene.rtAccel,
             RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES,
-            0xff /* instanceInclusionMask */, 0 /* hitIdx */, 1 /*ray type count*/, 0 /* missIdx */,
+                 kInstanceCameraParticle /* instanceInclusionMask */, 0 /* hitIdx */, 1 /*ray type count*/, 0 /* missIdx */,
             ray, rayData
         );
 
