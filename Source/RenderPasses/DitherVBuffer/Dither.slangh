@@ -7,6 +7,7 @@
 #define DITHER_MODE_HASH_GRID 6
 #define DITHER_MODE_FRACTAL_DITHERING 7
 #define DITHER_PER_PIXEL_4X_ROULETTE 8
+#define DITHER_PER_PIXEL_9X_ROULETTE 9
 
 #ifndef DITHER_MODE
 #define DITHER_MODE DITHER_MODE_DISABLED
@@ -504,8 +505,6 @@ float getPixelDitherThreshold(uint2 pixel, uint objectOffet)
 
 float getPixelDitherThresholdPlusRoulette(uint2 pixel, uint frameIndex, float3 posW, uint objectOffset)
 {
-    uint2 oddPixel = (pixel / 2u) % 2u;
-    
     // use random offset to ensure that each primitive uses a different mask
     //uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u)) * 7919);
     uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)) * 7919);
@@ -519,6 +518,30 @@ float getPixelDitherThresholdPlusRoulette(uint2 pixel, uint frameIndex, float3 p
     float ditherThreshold = v / 4.0;
     //ditherThreshold += 0.125;
     ditherThreshold += hash4D(float4(posW, frameIndex)) * 0.25;
+    //ditherThreshold += ((frameIndex * odds[oddPixel.x][oddPixel.y]) % 8u) / 8.0 * 0.25;
+    return ditherThreshold;
+}
+
+float getPixelDitherThresholdPlusRoulette3x3(uint2 pixel, uint frameIndex, float3 posW, uint objectOffset)
+{
+    // use random offset to ensure that each primitive uses a different mask
+    uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)) * 7919);
+    randomOffset += frameIndex; // rotate lookup based on frame index
+    pixel.x += randomOffset % 3u;
+    pixel.y += randomOffset / 3u;
+    pixel = pixel % 3u;
+
+    uint3x3 mask = uint3x3(
+        uint3(0, 7, 3),
+        uint3(6, 5, 2),
+        uint3(4, 1, 8)
+    );
+
+    uint v = mask[pixel.x][pixel.y]; // 0-8
+    
+    float ditherThreshold = v / 9.0;
+    //ditherThreshold += 0.125;
+    ditherThreshold += hash4D(float4(posW, frameIndex)) * 0.11;
     //ditherThreshold += ((frameIndex * odds[oddPixel.x][oddPixel.y]) % 8u) / 8.0 * 0.25;
     return ditherThreshold;
 }

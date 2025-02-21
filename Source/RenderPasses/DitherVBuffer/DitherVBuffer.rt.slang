@@ -30,6 +30,7 @@ cbuffer PerFrame
 
     float gMinVisibility; // everything below (and including) this transparency will be resolved via russian roulette or dither
     //int maxHits;
+    int gAlignMotionVectors; // align motion vectors to grid spacing when moving
 }
 
 #define MIN_VISIBILITY 0.001
@@ -107,6 +108,50 @@ float2 ViewSpaceToUV(float3 posV)
     return ndc * float2(-0.5, 0.5) + 0.5; // since posV.z is negative, the sign order is inversed
 }
 
+float2 getAlignedMotionVector(float2 mvec, bool isTransparent)
+{
+    uint2 frameDim = DispatchRaysDimensions().xy;
+    uint2 pixel = DispatchRaysIndex().xy;
+
+    float align = 0.0;
+    #if (DITHER_MODE == DITHER_PER_PIXEL_4X_ROULETTE) || (DITHER_MODE == DITHER_MODE_PER_PIXEL_4X)
+    align = 2.0;
+    #endif
+    #if DITHER_MODE == DITHER_PER_PIXEL_9X_ROULETTE
+    align = 3.0;
+    #endif
+    #if DITHER_MODE == DITHER_MODE_PER_PIXEL_16X
+    align = 4.0;
+    #endif
+    
+    if (!isTransparent || align == 0.0 || !gAlignMotionVectors) return mvec;
+
+    // Apply dithering to motion vector
+    if(abs(mvec.x) < 1e-4) mvec.x = 0;
+    if(abs(mvec.y) < 1e-4) mvec.y = 0;
+    float2 pixelMvec = mvec * frameDim;
+    float2 pixelMin = floor(pixelMvec / align) * align;
+    float2 pixelMax = ceil(pixelMvec / align) * align;
+    float2 f = frac(pixelMvec / align);
+
+    float rng = hash3D(float3(pixel, gFrameCount));
+    // choose between min and max based on rng
+    if (rng > f.x)
+    {
+        if((rng - f.x) / (1 - f.x) > f.y) pixelMvec = pixelMin;
+        else pixelMvec = float2(pixelMin.x, pixelMax.y);
+    }
+    else // rng <= f.x
+    {
+        if(rng/f.x > f.y) pixelMvec = float2(pixelMax.x, pixelMin.y);
+        else pixelMvec = pixelMax;
+    }
+    //pixelMvec = round(mvec * frameDim / align) * align; // round to grid
+    mvec = pixelMvec / frameDim;
+
+    return mvec;
+}
+
 [shader("miss")]
 void miss(inout RayData rayData : SV_RayPayload)
 {
@@ -118,7 +163,7 @@ void miss(inout RayData rayData : SV_RayPayload)
     float3 rayDirNoJitter = gScene.camera.computeRayPinhole(pixel, frameDim, /*no jitter*/false).dir;
     float3 prevEnvMapDir = mul(gScene.camera.data.prevViewMat, float4(rayDirNoJitter, 0.0)).xyz;
     float2 prevUV = ViewSpaceToUV(prevEnvMapDir);
-    gMotion[pixel] = prevUV - (float2(pixel)+0.5) / float2(frameDim);
+    gMotion[pixel] = getAlignedMotionVector(prevUV - (float2(pixel)+0.5) / float2(frameDim), rayData.minAlphaT <= RayTCurrent());
     gOpacity[pixel] = rayData.minAlphaT < RayTCurrent() ? 1.0 : 0.0;
 }
 
@@ -189,6 +234,10 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     if (alpha < getPixelDitherThresholdPlusRoulette(pixel, gFrameCount, v.posW, rayData.anyCount))
         IgnoreHit();
     #endif
+    #if (DITHER_MODE == DITHER_PER_PIXEL_9X_ROULETTE)
+    if (alpha < getPixelDitherThresholdPlusRoulette3x3(pixel, gFrameCount, v.posW, rayData.anyCount))
+        IgnoreHit();
+    #endif
     #if DITHER_MODE == DITHER_MODE_PER_JITTER
     if(!isCovered(pixel, alpha, gSampleIndex, gSampleCount, gFrameCount, v.posW))
         IgnoreHit();
@@ -237,34 +286,7 @@ float2 calcMotionVector(uint2 pixel, uint2 frameDim, TriangleHit triangleHit, bo
     float2 mvec = prevCrd - normalizedCrd;
     mvec += float2(gScene.camera.data.jitterX, -gScene.camera.data.jitterY); // Remove camera jitter from motion vector
 
-    #if DITHER_MODE == DITHER_PER_PIXEL_4X_ROULETTE
-    if (!isTransparent) return mvec;
-    // Apply dithering to motion vector
-    if(abs(mvec.x) < 1e-4) mvec.x = 0;
-    if(abs(mvec.y) < 1e-4) mvec.y = 0;
-    float2 pixelMvec = mvec * frameDim;
-    float2 pixelMin = floor(pixelMvec * 0.5) * 2.0;
-    float2 pixelMax = ceil(pixelMvec * 0.5) * 2.0;
-    float2 f = frac(pixelMvec * 0.5);
-    //if (f.x < 1e-2) f.x = 0; if (f.y < 1e-2) f.y = 0;
-    //if (f.x > 1 - 1e-2) f.x = 1; if (f.y > 1-1e-2) f.y = 1;
-    float rng = hash3D(float3(pixel, gFrameCount));
-    // choose between min and max based on rng
-    if (rng > f.x)
-    {
-        if((rng - f.x) / (1 - f.x) > f.y) pixelMvec = pixelMin;
-        else pixelMvec = float2(pixelMin.x, pixelMax.y);
-    }
-    else // rng <= f.x
-    {
-        if(rng/f.x > f.y) pixelMvec = float2(pixelMax.x, pixelMin.y);
-        else pixelMvec = pixelMax;
-    }
-    //pixelMvec = round(mvec * frameDim * 0.5) * 2.0; // round to 2x2 grid
-    mvec = pixelMvec / frameDim;
-
-    #endif
-    return mvec;
+    return getAlignedMotionVector(mvec, isTransparent);
 }
 
 float computeShadowImpl(uint2 pixel, uint lightIndex, float3 posW, float3 normalW)

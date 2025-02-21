@@ -140,6 +140,7 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     var["PerFrame"]["gSampleIndex"] = mFrameCount % std::max(1u, mpSamplePattern->getSampleCount());//mpSamplePattern->getCurSample();
     var["PerFrame"]["gDLSSCorrectionStrength"] = mDLSSCorrectionStrength;
     var["PerFrame"]["gMinVisibility"] = mMinVisibility;
+    var["PerFrame"]["gAlignMotionVectors"] = mAlignMotionVectors ? 1 : 0;
 
     var["DitherConstants"]["gGridScale"] = mGridScale;
     var["DitherConstants"]["gNoiseScale"] = float2(1.0f / mpNoiseTex->getWidth(), 1.0f / mpNoiseTex->getHeight());
@@ -193,6 +194,13 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
         {
             createNoisePattern();
         }
+    }
+    if(mDitherMode == DitherMode::PerPixel4x || mDitherMode == DitherMode::PerPixel16x ||
+        mDitherMode == DitherMode::PerPixel4xPlusRoulette ||
+        mDitherMode == DitherMode::PerPixel9xPlusRoulette)
+    {
+        widget.checkbox("Align Motion Vector", mAlignMotionVectors);
+        widget.tooltip("Align motion vector to grid size to prevent issues when moving camera");
     }
 
     widget.checkbox("Alpha Texture LOD", mUseAlphaTextureLOD);

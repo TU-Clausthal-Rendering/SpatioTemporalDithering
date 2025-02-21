@@ -48,6 +48,7 @@ public:
         HashGrid,
         FractalDithering,
         PerPixel4xPlusRoulette,
+        PerPixel9xPlusRoulette,
     };
 
     FALCOR_ENUM_INFO(DitherMode, {
@@ -60,6 +61,7 @@ public:
         { DitherMode::HashGrid, "HashGrid" },
         { DitherMode::FractalDithering, "FractalDithering" },
         { DitherMode::PerPixel4xPlusRoulette, "PerPixel4xPlusRoulette" },
+        { DitherMode::PerPixel9xPlusRoulette, "PerPixel9xPlusRoulette" },
     });
 
     enum class DitherPattern : uint32_t
@@ -176,6 +178,7 @@ private:
     NoisePattern mNoisePattern = NoisePattern::Blue;
     bool mCullBackFaces = false;
     float mMinVisibility = 1.0f;
+    bool mAlignMotionVectors = true; // align when using pixel grid techniques
 };
 
 FALCOR_ENUM_REGISTER(DitherVBuffer::DitherMode);
