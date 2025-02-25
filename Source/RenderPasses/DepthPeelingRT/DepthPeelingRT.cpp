@@ -99,7 +99,7 @@ void DepthPeelingRT::execute(RenderContext* pRenderContext, const RenderData& re
         defines.add("RAY_CONE_SPREAD", std::to_string(rayConeSpread));
         defines.add("USE_ALPHA_TEST", mAlphaTest ? "1" : "0");
         defines.add("SD_JITTER", mJitter ? "1" : "0");
-        defines.add("CULL_MODE_RAY_FLAG", RasterizerState::CullModeToRayFlag(mCullMode));
+        //defines.add("CULL_MODE_RAY_FLAG", RasterizerState::CullModeToRayFlag(mCullMode));
         defines.add("GUARD_BAND", std::to_string(mGuardBand));
         defines.add("MAX_COUNT", std::to_string(mMaxCount));
 

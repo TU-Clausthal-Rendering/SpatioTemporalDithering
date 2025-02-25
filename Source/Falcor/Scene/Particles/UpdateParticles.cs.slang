@@ -32,7 +32,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     //Get Particle
     ParticlePointDesc prt = gParticlePoints[gIndexOffset + particleIdx];
 
-    if(gCopyPrev){
+    if (gCopyPrev){
         [unroll]
         for(uint pIdx = 0; pIdx < 4; pIdx++){
             uint vertexID = gVBOffsets[pIdx] + particleIdx * 4;

@@ -272,7 +272,7 @@ void StochasticDepthMapRT::execute(RenderContext* pRenderContext, const RenderDa
         defines.add("SD_JITTER", mJitter ? "1" : "0");
         defines.add("IMPLEMENTATION", std::to_string(uint32_t(mImplementation)));
         defines.add("USE_RAY_INTERVAL", mUseRayInterval ? "1" : "0");
-        defines.add("CULL_MODE_RAY_FLAG", RasterizerState::CullModeToRayFlag(mCullMode));
+        //defines.add("CULL_MODE_RAY_FLAG", RasterizerState::CullModeToRayFlag(mCullMode));
         defines.add("GUARD_BAND", std::to_string(mGuardBand));
         defines.add("MAX_COUNT", std::to_string(mMaxCount));
         float maxDepth = renderData.getDictionary().getValue("MAX_DEPTH", std::numeric_limits<float>::max());

@@ -60,20 +60,6 @@ public:
         }
     );
 
-    static const char* CullModeToRayFlag(CullMode m)
-    {
-        switch (m)
-        {
-        case CullMode::None:
-            return "RAY_FLAG_NONE";
-        case CullMode::Back:
-            return "RAY_FLAG_CULL_BACK_FACING_TRIANGLES";
-        case CullMode::Front:
-            return "RAY_FLAG_CULL_FRONT_FACING_TRIANGLES";
-        }
-        return "";
-    }
-
     /**
      * Polygon fill mode
      */
@@ -81,6 +67,23 @@ public:
     {
         Wireframe, ///< Wireframe
         Solid      ///< Solid
+    };
+
+    /**
+     * Mesh render mode
+     */
+    enum class MeshRenderMode : uint32_t
+    {
+        All = 0x00,                ///< Rasterize all meshes
+        SkipStatic = 0x1,          ///< Rasterize static meshes only
+        SkipDynamic = 0x2,         ///< Rasterize dynamic meshes
+        SkipNonDoubleSided = 0x4,  ///< Rasterizes only double Sided Meshes
+        SkipNonOpaque = 0x8,       ///< Rasterizes only opaque meshes
+        SkipOpaque = 0x10,         ///< Rasterizes only non-opaque meshes
+        SkipParticleCamera = 0x20, ///< Skip Camera facing particles
+        SkipParticleXY = 0x40,     ///< Skip XY plane facing particles
+        SkipParticleYZ = 0x80,     ///< Skip YZ facing particles
+        SkipParticleXZ = 0x100,    ///< Skip XZ facing particles
     };
 
     /**
@@ -254,5 +257,6 @@ private:
 };
 
 FALCOR_ENUM_REGISTER(RasterizerState::CullMode);
+FALCOR_ENUM_CLASS_OPERATORS(RasterizerState::MeshRenderMode);
 
 } // namespace Falcor

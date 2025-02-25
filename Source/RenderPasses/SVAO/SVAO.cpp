@@ -252,7 +252,7 @@ void SVAO::execute(RenderContext* pRenderContext, const RenderData& renderData)
         defines.add("AO_KERNEL", std::to_string(uint32_t(mKernel)));
         auto rayConeSpread = mpScene->getCamera()->computeScreenSpacePixelSpreadAngle(renderData.getDefaultTextureDims().y);
         defines.add("RAY_CONE_SPREAD", std::to_string(rayConeSpread));
-        defines.add("CULL_MODE_RAY_FLAG", RasterizerState::CullModeToRayFlag(mCullMode));
+        //defines.add("CULL_MODE_RAY_FLAG", RasterizerState::CullModeToRayFlag(mCullMode));
         defines.add("NUM_DIRECTIONS", std::to_string(mSampleCount));
         defines.add(mpScene->getSceneDefines());
 

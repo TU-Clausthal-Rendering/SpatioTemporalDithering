@@ -366,7 +366,7 @@ void rayGen()
     for(uint i = 0; i < 256; ++i)
     {
         data.rayT = ray.tMax; // overwrite with max t
-        TraceRay(gScene.rtAccel, rayFlags, 0xff, 0, rayTypeCount, 0, ray.toRayDesc(), data);
+        TraceRay(gScene.rtAccel, rayFlags, kInstanceCameraParticle, 0, rayTypeCount, 0, ray.toRayDesc(), data);
         ray.tMin = data.rayT; // set ray t from hitpoint to new start
         if(data.color.w <= MIN_VISIBILITY || ray.tMin >= ray.tMax) break;
     }

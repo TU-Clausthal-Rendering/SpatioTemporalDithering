@@ -312,6 +312,8 @@ target_sources(Falcor PRIVATE
     RenderPasses/Shared/Denoising/NRDData.slang
     RenderPasses/Shared/Denoising/NRDHelpers.slang
 
+    Scene/FrustumCulling.cpp
+	Scene/FrustumCulling.h
     Scene/HitInfo.cpp
     Scene/HitInfo.h
     Scene/HitInfo.slang
