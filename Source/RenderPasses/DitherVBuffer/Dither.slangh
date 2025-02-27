@@ -619,6 +619,7 @@ float getPixelDitherThresholdPlusRoulette3x3(uint2 pixel, uint frameIndex, float
     //uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u)) * 7919);
     if(gRotatePattern)
     {
+        // frameIndex = frameIndex % 8; // fix for dlss (uneven repeat cycles) => doesnt work
         pixel.x += frameIndex % 3;
         pixel.y += frameIndex / 3;
     }

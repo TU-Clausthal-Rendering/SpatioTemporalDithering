@@ -31,6 +31,8 @@ cbuffer PerFrameCB
 {
     float gAlpha;
     float gColorBoxSigma;
+    int gUseBoundingBoxForTransparency;
+    int gTransparencyRadius;
 };
 
 Texture2D<float4> gTexColor;
@@ -94,7 +96,7 @@ float4 main(float2 texC : TEXCOORD) : SV_TARGET0
     // Details here: http://www.gdcvault.com/play/1023521/From-the-Lab-Bench-Real
     // and here: http://cwyman.org/papers/siga16_gazeTrackedFoveatedRendering.pdf
     float3 color = gTexColor.Load(int3(ipos, 0)).rgb;
-    bool hasTransparency = gTexOpacity.Load(int3(ipos, 0)).r > 0.0;
+    bool hasTransparency = (gTexOpacity.Load(int3(ipos, 0)).r > 0.0);
     //opacity = 0.5;
     color = RGBToYCgCo(color);
 
@@ -103,7 +105,7 @@ float4 main(float2 texC : TEXCOORD) : SV_TARGET0
     float3 colorMin = color;
     float3 colorMax = color;
     int statRadius = 1;
-    if(hasTransparency) statRadius = 3;
+    if (hasTransparency) statRadius = gTransparencyRadius;
 
     for(int rx = -statRadius; rx <= statRadius; ++rx) for(int ry = -statRadius; ry <= statRadius; ++ry)
     {
@@ -121,12 +123,12 @@ float4 main(float2 texC : TEXCOORD) : SV_TARGET0
     colorVar *= oneOverNine;
 
     float3 sigma = sqrt(max(0.f, colorVar - colorAvg * colorAvg));
-    if (!hasTransparency) // only use variance if we there is no transparency involved
+    if (!hasTransparency || (gUseBoundingBoxForTransparency == 0)) // only use variance if we there is no transparency involved
     {
         // set color min and max based on variance
         colorMin = colorAvg - gColorBoxSigma * sigma;
         colorMax = colorAvg + gColorBoxSigma * sigma;
-    }
+    } // else colorMin and colorMax will be the color bounding box
     
     float2 motion = gTexMotionVec.Load(int3(ipos, 0)).xy;
 

@@ -62,6 +62,8 @@ private:
     {
         float alpha = 0.1f;
         float colorBoxSigma = 1.0f;
+        bool useBoundingBoxForTransparency = false;
+        int transparencyRadius = 3;
     } mControls;
 
     ref<Texture> mpPrevColor;

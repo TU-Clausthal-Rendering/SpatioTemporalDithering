@@ -111,6 +111,8 @@ void DitherTAA::execute(RenderContext* pRenderContext, const RenderData& renderD
         auto var = mpPass->getRootVar();
         var["PerFrameCB"]["gAlpha"] = mControls.alpha;
         var["PerFrameCB"]["gColorBoxSigma"] = mControls.colorBoxSigma;
+        var["PerFrameCB"]["gUseBoundingBoxForTransparency"] = mControls.useBoundingBoxForTransparency ? 1 : 0;
+        var["PerFrameCB"]["gTransparencyRadius"] = mControls.transparencyRadius;
         var["gTexColor"] = pColorIn;
         var["gTexMotionVec"] = pMotionVec;
         var["gTexOpacity"] = pOpacity;
@@ -139,6 +141,9 @@ void DitherTAA::renderUI(Gui::Widgets& widget)
 
     widget.var("Color-Box Sigma", mControls.colorBoxSigma, 0.f, 15.f, 0.001f);
     widget.var("Alpha", mControls.alpha, 0.f, 1.0f, 0.001f);
+
+    widget.checkbox("Use BBOX for Transparency", mControls.useBoundingBoxForTransparency);
+    widget.slider("Transparency Radius", mControls.transparencyRadius, 1, 5);
 
     if (widget.button("Clear"))
         mClear = true;
