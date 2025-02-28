@@ -9,6 +9,9 @@
 #define DITHER_PER_PIXEL_4X_ROULETTE 8
 #define DITHER_PER_PIXEL_9X_ROULETTE 9
 
+#define OBJECT_HASH_QUADS 0
+#define OBJECT_HASH_GEOMETRY 0
+
 #ifndef DITHER_MODE
 #define DITHER_MODE DITHER_MODE_DISABLED
 #endif
@@ -37,6 +40,7 @@ cbuffer DitherConstants
     float gGridScale;
     int gRotatePattern;
     int gAddNoiseOnPattern;
+    uint gObjectHashType;
 };
 
 static const int4x4 ditherMatrix = int4x4(
@@ -69,6 +73,11 @@ uint3x3 get3x3Permutation(uint id)
     return m;
 }
 
+float getObjectHash()
+{
+    if(gObjectHashType == OBJECT_HASH_QUADS) return hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u));
+    return hash3D(float3(InstanceID(), GeometryIndex(), HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE));
+}
 
 uint4 get2x2Permutation(uint i) {
     // only pretty configurations (first two numbers form a diagonal)
@@ -549,7 +558,7 @@ uint2 DecodeMorton2D(uint morton) {
 
 float getPixelDitherThreshold(uint2 pixel, uint objectOffet, float3 posW, uint frameIndex)
 {
-    uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)) * 7919);
+    uint randomOffset = uint(getObjectHash() * 7919);
     //if (objectOffset <= 4) randomOffset = objectOffset;
 
     // use random offset to ensure that each primitive uses a different mask
@@ -592,8 +601,7 @@ float getPixelDitherThreshold(uint2 pixel, uint objectOffet, float3 posW, uint f
 float getPixelDitherThresholdPlusRoulette(uint2 pixel, uint frameIndex, float3 posW, uint objectOffset)
 {
     // use random offset to ensure that each primitive uses a different mask
-    //uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u)) * 7919);
-    uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)) * 7919);
+    uint randomOffset = uint(getObjectHash() * 7919);
     //if (objectOffset <= 4) randomOffset = objectOffset;
 
     uint4 mask = get2x2Permutation(randomOffset); // mask with [0, 1, 2, 3] permutation
@@ -615,8 +623,7 @@ float getPixelDitherThresholdPlusRoulette(uint2 pixel, uint frameIndex, float3 p
 float getPixelDitherThresholdPlusRoulette3x3(uint2 pixel, uint frameIndex, float3 posW, uint objectOffset)
 {
     // use random offset to ensure that each primitive uses a different mask
-    uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)) * 7919);
-    //uint randomOffset = uint(hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u)) * 7919);
+    uint randomOffset = uint(getObjectHash() * 7919);
     if(gRotatePattern)
     {
         // frameIndex = frameIndex % 8; // fix for dlss (uneven repeat cycles) => doesnt work

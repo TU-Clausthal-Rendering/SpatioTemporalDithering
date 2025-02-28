@@ -122,6 +122,17 @@ public:
         {NoisePattern::Perlin, "Perlin"}
     });
 
+    enum class ObjectHashType : uint32_t
+    {
+        Quads,
+        Geometry,
+    };
+
+    FALCOR_ENUM_INFO(ObjectHashType, {
+        {ObjectHashType::Quads, "Quads"},
+        {ObjectHashType::Geometry, "Geometry"},
+    });
+
     FALCOR_PLUGIN_CLASS(DitherVBuffer, "DitherVBuffer", "VBuffer with Dithering options for transparency");
 
     static ref<DitherVBuffer> create(ref<Device> pDevice, const Properties& props) { return make_ref<DitherVBuffer>(pDevice, props); }
@@ -170,6 +181,7 @@ private:
     float mDLSSCorrectionStrength = 1.0;
     DitherPattern mFractalDitherPattern = DitherPattern::Dither8x8;
     float mGridScale = 0.25f;
+    ObjectHashType mObjectHashType = ObjectHashType::Geometry;
 
     ref<Texture> mpFracDitherTex;
     ref<Texture> mpFracDitherRampTex;
@@ -189,3 +201,4 @@ FALCOR_ENUM_REGISTER(DitherVBuffer::CoverageCorrection);
 FALCOR_ENUM_REGISTER(DitherVBuffer::DitherPattern);
 FALCOR_ENUM_REGISTER(DitherVBuffer::SamplePattern);
 FALCOR_ENUM_REGISTER(DitherVBuffer::NoisePattern);
+FALCOR_ENUM_REGISTER(DitherVBuffer::ObjectHashType);
