@@ -11,7 +11,8 @@ public:
     {
         RawAlpha,
         AlphaTest,
-        Saturated
+        Saturated,
+        OnlyOpaque
     };
 
     FALCOR_ENUM_INFO(
@@ -20,6 +21,7 @@ public:
             { RayConeShadow::RawAlpha, "RawAlpha" },
             { RayConeShadow::AlphaTest, "AlphaTest" },
             { RayConeShadow::Saturated, "Saturated" },
+            { RayConeShadow::OnlyOpaque, "OnlyOpaque" }
         }
     );
 

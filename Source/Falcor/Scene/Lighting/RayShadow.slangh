@@ -20,6 +20,7 @@ SamplerState gSoftShadowSampler; // modified clamping mode to get softer borders
 #define RAY_CONE_SHADOW_RAY 0
 #define RAY_CONE_SHADOW_ALPHA_TEST 1
 #define RAY_CONE_SHADOW_SATURATED 2
+#define RAY_CONE_SHADOW_OPAQUE 3
 
 #ifndef RAY_CONE_SHADOW
 #define RAY_CONE_SHADOW RAY_CONE_SHADOW_SATURATED
@@ -77,7 +78,9 @@ RayDesc ray
     
     RayQuery < RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH > rayQuery;
     const uint instanceMask = getBestParticleShadowPlane(ray.Direction);
-    rayQuery.TraceRayInline(gScene.rtAccel, RAY_FLAG_NONE, instanceMask, ray);
+    uint rayFlags = RAY_FLAG_NONE;
+    if(RAY_CONE_SHADOW == RAY_CONE_SHADOW_OPAQUE) rayFlags |= RAY_FLAG_CULL_NON_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+    rayQuery.TraceRayInline(gScene.rtAccel, rayFlags, instanceMask, ray);
     while (rayQuery.Proceed())
     {
         if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
