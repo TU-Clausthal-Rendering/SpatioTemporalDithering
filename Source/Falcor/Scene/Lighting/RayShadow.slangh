@@ -97,9 +97,13 @@ RayDesc ray
             float lambda = shadowCone.computeLOD(v.coneTexLODValue);
             lambda += gShadowLodBias;
             //lambda += 1.0; // small offset to make shadows a bit more soft
-            let lod = SoftExplicitRayConesLodTextureSampler(lambda);
+            let lod = SoftExplicitRayConesLodTextureSampler(lambda);   
+            #else
+            let lod = ExplicitLodTextureSampler(gShadowLodBias);
+            #endif
+
             float opacity = material.evalOpacity(gScene.materials, v, lod);
-            
+
             if (RAY_CONE_SHADOW == RAY_CONE_SHADOW_SATURATED)
                 opacity = saturate(opacity * 2.0); // scale opacity because opacity > 0.5 is opaque for alpha test
             else if(RAY_CONE_SHADOW == RAY_CONE_SHADOW_ALPHA_TEST)
@@ -108,14 +112,6 @@ RayDesc ray
             visibility = visibility * (1.0 - opacity);
             if (visibility < visibilityCutoff)
                 return 0.0;
-            
-            #else
-            let lod = ExplicitLodTextureSampler(gShadowLodBias);
-            float opacity = material.evalOpacity(gScene.materials, v, lod);
-            if (opacity >= 0.5)
-                return 0.0; // alpha test: hit opaque => occluded
-#endif
-
         }
         else
             return 0.0; // hit opaque => occluded

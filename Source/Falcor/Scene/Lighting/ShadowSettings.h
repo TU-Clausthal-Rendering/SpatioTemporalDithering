@@ -9,7 +9,7 @@ class FALCOR_API ShadowSettings
 public:
     enum class RayConeShadow
     {
-        Raw,
+        RawAlpha,
         AlphaTest,
         Saturated
     };
@@ -17,7 +17,7 @@ public:
     FALCOR_ENUM_INFO(
         RayConeShadow,
         {
-            { RayConeShadow::Raw, "Raw" },
+            { RayConeShadow::RawAlpha, "RawAlpha" },
             { RayConeShadow::AlphaTest, "AlphaTest" },
             { RayConeShadow::Saturated, "Saturated" },
         }
@@ -34,10 +34,10 @@ private:
     ShadowSettings();
 
     float mPointLightClip = 0.2f;
-    bool mRayCones = true;
+    bool mRayCones = false;
     bool mDiminishBorder = true;
     float mLodBias = 0.0f;
-    RayConeShadow mRayConeShadow = RayConeShadow::Saturated; // fastest
+    RayConeShadow mRayConeShadow = RayConeShadow::RawAlpha;
 
     ref<Sampler> mpSampler;
 };

@@ -42,16 +42,15 @@ void ShadowSettings::updateShaderVar(ref<Device> pDevice, ShaderVar& vars)
 void ShadowSettings::renderUI(Gui::Widgets& widget)
 {
     widget.checkbox("Ray Cones", mRayCones);
-    if (mRayCones)
+    if(mRayCones)
     {
-        widget.dropdown("Ray Cone Shadows", mRayConeShadow);
+        widget.checkbox("Diminish Border", mDiminishBorder);
+        widget.tooltip("Blends out texture fetches near the border to prevent showing the quadratic shape of the texture in higher mip levels");
     }
+
+    widget.dropdown("Shadow Type", mRayConeShadow);
     widget.var("LOD Bias", mLodBias, -16.0f, 16.0f, 0.5f);
-
     widget.var("Point Light Clip", mPointLightClip, 0.0f);
-
-    widget.checkbox("Diminish Border", mDiminishBorder);
-    widget.tooltip("Blends out texture fetches near the border to prevent showing the quadratic shape of the texture in higher mip levels");
 
 }
 
