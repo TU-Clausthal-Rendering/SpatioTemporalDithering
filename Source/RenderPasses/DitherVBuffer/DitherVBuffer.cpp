@@ -157,6 +157,8 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     var["DitherConstants"]["gRotatePattern"] = mRotatePattern ? 1 : 0;
     var["DitherConstants"]["gAddNoiseOnPattern"] = mAddNoiseOnPattern ? 1 : 0;
     var["DitherConstants"]["gObjectHashType"] = uint(mObjectHashType);
+    var["DitherConstants"]["gTemporalDitherMode"] = uint(mTemporalDitherMode);
+    var["DitherConstants"]["gTemporalDitherLength"] = mTemporalDitherLength;
 
     LightSettings::get().updateShaderVar(var);
     ShadowSettings::get().updateShaderVar(mpDevice, var);
@@ -217,6 +219,12 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
         widget.checkbox("Rotate Pattern", mRotatePattern);
         widget.tooltip("Rotates the per-pixel dither pattern based on the frame index");
         widget.checkbox("Noise on Pattern", mAddNoiseOnPattern);
+
+        widget.dropdown("Temporal Dither", mTemporalDitherMode);
+        if(mTemporalDitherMode != TemporalDitherMode::Disabled)
+        {
+            widget.var("Temporal Dither Length", mTemporalDitherLength, 1u, 16u);
+        }
     }
 
     widget.dropdown("Object Hash", mObjectHashType);

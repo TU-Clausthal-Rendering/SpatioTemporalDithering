@@ -17,5 +17,5 @@ private:
     float mEnvMapIntensity = 0.25f;
     float mAmbientIntensity = 0.25f;
     float mLightIntensity = 0.5f;
-    bool mEnvMapMirror = false;
+    bool mEnvMapMirror = true;
 };

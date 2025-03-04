@@ -233,15 +233,15 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
 
     #endif
     #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_2X2)
-    if (alpha < getPixelDitherThreshold2x2(pixel, gFrameCount, v.posW, rayData.anyCount))
+    if (alpha < getPixelDitherThreshold2x2(pixel, gFrameCount, v.posW, rayData.anyCount, alpha))
             IgnoreHit();
     #endif
     #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_3X3)
-        if (alpha < getPixelDitherThreshold3x3(pixel, gFrameCount, v.posW, rayData.anyCount))
+    if (alpha < getPixelDitherThreshold3x3(pixel, gFrameCount, v.posW, rayData.anyCount, alpha))
         IgnoreHit();
     #endif
     #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_4X4)
-    if (alpha < getPixelDitherThreshold4x4(pixel, rayData.anyCount, v.posW, gFrameCount))
+    if (alpha < getPixelDitherThreshold4x4(pixel, rayData.anyCount, v.posW, gFrameCount, alpha))
             IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_PER_JITTER
