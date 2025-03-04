@@ -39,29 +39,27 @@ class DitherVBuffer : public RenderPass
 public:
     enum class DitherMode : uint32_t
     {
-        Disabled,
-        PerPixel4x,
-        PerPixel16x,
+        PerPixel2x2,
+        PerPixel3x3,
+        PerPixel4x4,
         PerJitter,
         RussianRoulette,
         Periodic,
         HashGrid,
         FractalDithering,
-        PerPixel4xPlusRoulette,
-        PerPixel9xPlusRoulette,
+        Disabled = 0xff,
     };
 
     FALCOR_ENUM_INFO(DitherMode, {
         { DitherMode::Disabled, "Disabled" },
-        { DitherMode::PerPixel4x, "PerPixel4x" },
-        { DitherMode::PerPixel16x, "PerPixel16x" },
+        { DitherMode::PerPixel2x2, "PerPixel2x2" },
+        { DitherMode::PerPixel3x3, "PerPixel3x3" },
+        { DitherMode::PerPixel4x4, "PerPixel4x4" },
         { DitherMode::PerJitter, "PerJitter" },
         { DitherMode::RussianRoulette, "RussianRoulette" },
         { DitherMode::Periodic, "Periodic" },
         { DitherMode::HashGrid, "HashGrid" },
         { DitherMode::FractalDithering, "FractalDithering" },
-        { DitherMode::PerPixel4xPlusRoulette, "PerPixel4xPlusRoulette" },
-        { DitherMode::PerPixel9xPlusRoulette, "PerPixel9xPlusRoulette" },
     });
 
     enum class DitherPattern : uint32_t
@@ -173,7 +171,7 @@ private:
     ref<CPUSampleGenerator> mpSamplePattern;
     SamplePattern mSamplePattern = SamplePattern::Halton;
 
-    DitherMode mDitherMode = DitherMode::PerPixel9xPlusRoulette;
+    DitherMode mDitherMode = DitherMode::PerPixel3x3;
     bool mUseAlphaTextureLOD = false; // use lod for alpha lookups
     bool mUseTransparencyWhitelist = false;
     std::set<std::string> mTransparencyWhitelist;

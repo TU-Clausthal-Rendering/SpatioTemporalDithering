@@ -117,13 +117,13 @@ float2 getAlignedMotionVector(float2 mvec, bool isTransparent)
     uint2 pixel = DispatchRaysIndex().xy;
 
     float align = 0.0;
-    #if (DITHER_MODE == DITHER_PER_PIXEL_4X_ROULETTE) || (DITHER_MODE == DITHER_MODE_PER_PIXEL_4X)
+    #if DITHER_MODE == DITHER_MODE_PER_PIXEL_2X2
     align = 2.0;
     #endif
-    #if DITHER_MODE == DITHER_PER_PIXEL_9X_ROULETTE
+    #if DITHER_MODE == DITHER_MODE_PER_PIXEL_3X3
     align = 3.0;
     #endif
-    #if DITHER_MODE == DITHER_MODE_PER_PIXEL_16X
+    #if DITHER_MODE == DITHER_MODE_PER_PIXEL_4X4
     align = 4.0;
     #endif
     
@@ -230,19 +230,19 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     #endif
 
     #if DITHER_MODE == DITHER_MODE_DISABLED
-    
+
     #endif
-    #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_4X) || (DITHER_MODE == DITHER_MODE_PER_PIXEL_16X)
-    if (alpha < getPixelDitherThreshold(pixel, rayData.anyCount, v.posW, gFrameCount))
+    #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_2X2)
+    if (alpha < getPixelDitherThreshold2x2(pixel, gFrameCount, v.posW, rayData.anyCount))
+            IgnoreHit();
+    #endif
+    #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_3X3)
+        if (alpha < getPixelDitherThreshold3x3(pixel, gFrameCount, v.posW, rayData.anyCount))
         IgnoreHit();
     #endif
-    #if (DITHER_MODE == DITHER_PER_PIXEL_4X_ROULETTE)
-    if (alpha < getPixelDitherThresholdPlusRoulette(pixel, gFrameCount, v.posW, rayData.anyCount))
-        IgnoreHit();
-    #endif
-    #if (DITHER_MODE == DITHER_PER_PIXEL_9X_ROULETTE)
-    if (alpha < getPixelDitherThresholdPlusRoulette3x3(pixel, gFrameCount, v.posW, rayData.anyCount))
-        IgnoreHit();
+    #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_4X4)
+    if (alpha < getPixelDitherThreshold4x4(pixel, rayData.anyCount, v.posW, gFrameCount))
+            IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_PER_JITTER
     if(!isCovered(pixel, alpha, gSampleIndex, gSampleCount, gFrameCount, v.posW))

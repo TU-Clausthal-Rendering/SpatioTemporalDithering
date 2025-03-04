@@ -208,9 +208,9 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
             createNoisePattern();
         }
     }
-    if(mDitherMode == DitherMode::PerPixel4x || mDitherMode == DitherMode::PerPixel16x ||
-        mDitherMode == DitherMode::PerPixel4xPlusRoulette ||
-        mDitherMode == DitherMode::PerPixel9xPlusRoulette)
+    if(mDitherMode == DitherMode::PerPixel2x2 ||
+        mDitherMode == DitherMode::PerPixel3x3 ||
+        mDitherMode == DitherMode::PerPixel4x4)
     {
         widget.checkbox("Align Motion Vector", mAlignMotionVectors);
         widget.tooltip("Align motion vector to grid size to prevent issues when moving camera");

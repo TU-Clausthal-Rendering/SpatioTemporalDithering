@@ -25,8 +25,9 @@ inline double scorePermutation(const std::array<int, T* T>& indices) {
         }
     }
 
+    return sumInverseDist;
     // 1D Offset Score (with Wrap-Around)
-    int min1DSpacing = std::numeric_limits<int>::max();
+    /*int min1DSpacing = std::numeric_limits<int>::max();
     int sum1DSpacing = 0;
     for (size_t i = 0; i < T * T; ++i) {
         size_t nextIndex = (i + 1) % (T * T);  // Wrap-around at the end
@@ -36,7 +37,7 @@ inline double scorePermutation(const std::array<int, T* T>& indices) {
     }
 
     // Combine Scores (adjust weights as needed)
-    return sumInverseDist + min1DSpacing * T * T + sum1DSpacing * 3.0;
+    return sumInverseDist + min1DSpacing * T * T + sum1DSpacing * 3.0;*/
 }
 
 template<int T>
