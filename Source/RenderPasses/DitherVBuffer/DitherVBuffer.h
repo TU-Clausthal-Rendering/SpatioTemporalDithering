@@ -49,6 +49,7 @@ public:
         FractalDithering,
         BlueNoise3D,
         PerPixel2x2x2,
+        DitherTemporalAA,
         Disabled = 0xff,
     };
 
@@ -58,12 +59,14 @@ public:
         { DitherMode::PerPixel3x3, "PerPixel3x3" },
         { DitherMode::PerPixel4x4, "PerPixel4x4" },
         { DitherMode::PerPixel2x2x2, "PerPixel2x2x2" },
+        { DitherMode::DitherTemporalAA, "DitherTemporalAA" },
         { DitherMode::PerJitter, "PerJitter" },
         { DitherMode::RussianRoulette, "RussianRoulette" },
         { DitherMode::Periodic, "Periodic" },
         { DitherMode::HashGrid, "HashGrid" },
         { DitherMode::FractalDithering, "FractalDithering" },
         { DitherMode::BlueNoise3D, "BlueNoise3D" },
+        
     });
 
     enum class TemporalDitherMode
@@ -208,6 +211,7 @@ private:
     ref<Texture> mpNoiseTex;
     ref<Sampler> mpNoiseSampler;
     ref<Texture> mpBlueNoise3DTex;
+    ref<Texture> mpBlueNoise64Tex;
     NoisePattern mNoisePattern = NoisePattern::Blue;
     bool mCullBackFaces = false;
     float mMinVisibility = 1.0f;

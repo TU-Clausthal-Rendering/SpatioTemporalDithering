@@ -71,6 +71,7 @@ DitherVBuffer::DitherVBuffer(ref<Device> pDevice, const Properties& props)
     mpPermutations3x3Buffer = generatePermutations3x3(mpDevice);
 
     mpBlueNoise3DTex = Texture::createFromFile(mpDevice, "dither/bluenoise3d_16.dds", false, false);
+    mpBlueNoise64Tex = Texture::createFromFile(mpDevice, "dither/bluenoise64.dds", false, false);
 
     // load properties
     for (const auto& [key, value] : props)
@@ -147,6 +148,7 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     var["gTransparencyWhitelist"] = mpTransparencyWhitelist;
     var["gPermutations3x3"] = mpPermutations3x3Buffer;
     var["gBlueNoise3DTex"] = mpBlueNoise3DTex;
+    var["gBlueNoise64x64Tex"] = mpBlueNoise64Tex;
 
     var["PerFrame"]["gFrameCount"] = mFrameCount++;
     var["PerFrame"]["gSampleCount"] = mpSamplePattern->getSampleCount();

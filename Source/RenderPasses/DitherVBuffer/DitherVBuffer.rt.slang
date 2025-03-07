@@ -248,6 +248,10 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     if (alpha < getPixelDitherThreshold2x2x2(pixel, v.posW, gFrameCount, alpha))
         IgnoreHit();
     #endif
+    #if (DITHER_MODE == DITHER_MODE_DITHER_TEMPORAL_AA)
+    if (alpha < ditherTemporalAAThreshold(pixel, gFrameCount, v.posW))
+        IgnoreHit();
+    #endif
     #if DITHER_MODE == DITHER_MODE_PER_JITTER
     if(!isCovered(pixel, alpha, gSampleIndex, gSampleCount, gFrameCount, v.posW))
         IgnoreHit();
