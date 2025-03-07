@@ -213,18 +213,25 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
             createNoisePattern();
         }
     }
-    if(mDitherMode == DitherMode::PerPixel2x2 ||
+
+    const bool is2DDither = mDitherMode == DitherMode::PerPixel2x2 ||
         mDitherMode == DitherMode::PerPixel3x3 ||
-        mDitherMode == DitherMode::PerPixel4x4)
+        mDitherMode == DitherMode::PerPixel4x4;
+    const bool is3DDither = mDitherMode == DitherMode::PerPixel2x2x2;
+
+    if(is2DDither || is3DDither)
     {
         widget.checkbox("Align Motion Vector", mAlignMotionVectors);
         widget.tooltip("Align motion vector to grid size to prevent issues when moving camera");
+        widget.checkbox("Noise on Pattern", mAddNoiseOnPattern);
+    }
+
+    if(is2DDither)
+    {
         widget.checkbox("Rotate Pattern", mRotatePattern);
         widget.tooltip("Rotates the per-pixel dither pattern based on the frame index");
-        widget.checkbox("Noise on Pattern", mAddNoiseOnPattern);
-
         widget.dropdown("Temporal Dither", mTemporalDitherMode);
-        if(mTemporalDitherMode != TemporalDitherMode::Disabled)
+        if (mTemporalDitherMode != TemporalDitherMode::Disabled)
         {
             widget.var("Temporal Dither Length", mTemporalDitherLength, 1u, 16u);
         }

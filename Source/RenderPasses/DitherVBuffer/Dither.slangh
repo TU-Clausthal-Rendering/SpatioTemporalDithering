@@ -8,6 +8,7 @@
 #define DITHER_MODE_HASH_GRID 6
 #define DITHER_MODE_FRACTAL_DITHERING 7
 #define DITHER_MODE_BLUE_NOISE3D 8
+#define DITHER_MODE_PER_PIXEL_2X2X2 9
 
 #define TEMPORAL_DITHER_DISABLED 0
 #define TEMPORAL_DITHER_UNIFORM 1
@@ -131,6 +132,42 @@ uint4 get2x2Permutation(uint i) {
         case 23: return uint4(3, 2, 1, 0);
         default: return 0u;
     }
+}
+
+uint4 get2x2PrettyPermutation(uint i) {
+    // only pretty configurations (first two numbers form a diagonal)
+    switch (i % 8u) {
+        case 0:  return uint4(0, 2, 3, 1);
+        case 1:  return uint4(0, 3, 2, 1);
+        case 2:  return uint4(2, 0, 1, 3);
+        case 3:  return uint4(3, 0, 1, 2);
+        case 4:  return uint4(2, 1, 0, 3);
+        case 5:  return uint4(3, 1, 0, 2);
+        case 6:  return uint4(1, 2, 3, 0);
+        case 7:  return uint4(1, 3, 2, 0);
+        default: return 0u;
+    }
+}
+
+uint get2x2x2Threshold(uint3 pos, uint offset)
+{
+    uint permutationRng = offset % 8; // 8 (pretty) permutations
+    uint rotationRng = (offset / 8) % 2; // 2 rotations of 2nd slice (cw or ccw)
+    uint zRng = (offset / 16) % 2; // 2 z-flips (either start at 0 or 1)
+
+    uint4 v4 = get2x2PrettyPermutation(permutationRng);
+    pos.z = pos.z + zRng; // add z rng
+    pos = pos % 2u; // make sure its in 2x2x2
+    if(pos.z > 0) {
+        // rotate 2nd slice.
+        if(rotationRng == 0)
+            pos.xy = uint2(1u - pos.y, pos.x);
+        else 
+            pos.xy = uint2(pos.y, 1u - pos.x);
+    }
+
+    uint index = pos.x + 2u * pos.y;
+    return v4[index] * 2u + pos.z;
 }
 
 uint spatialHash(uint4 v)
@@ -581,20 +618,25 @@ uint2 applyRotation(uint2 pixel, uint offset, uint width, uint height)
 float applyTemporalDither(inout float threshold, uint frameIndex, float alpha, uint matrixWidthTimesHeight)
 {
     int vcp8[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+    float rotationWeight = 1.0;
+    if(gRotatePattern) rotationWeight = 1.0 / float(matrixWidthTimesHeight);
+
     switch (gTemporalDitherMode)
     {
         case TEMPORAL_DITHER_UNIFORM:
-            threshold += frameIndex / float(gTemporalDitherLength);
-            return 1.0 / gTemporalDitherLength;
+            threshold += (frameIndex % gTemporalDitherLength) / float(gTemporalDitherLength) * rotationWeight;
+            return 1.0 / gTemporalDitherLength * rotationWeight;
         case TEMPORAL_DITHER_VANDERCORPUT:
             // TODO
             //threshold = frac(threshold + VanDerCorput(frameIndex, gTemporalDitherLength));
-            threshold += vcp8[frameIndex % 8u] / 8.0;
-            return 1.0 / 8.0;
+            threshold += vcp8[frameIndex % 8u] / 8.0 * rotationWeight;
+            return 1.0 / 8.0 * rotationWeight;
         case TEMPORAL_DITHER_CYCLICALPHA:{
             //threshold += frameIndex * alpha;
-            threshold += (frameIndex % 65536u) * alpha; // 16 bit precision for frame index (should be enough to prevent floating point issues?)
-            return alpha;
+            //threshold += (frameIndex % 65536u) * alpha; // 16 bit precision for frame index (should be enough to prevent floating point issues?)
+            //return alpha;
+            threshold += frac((frameIndex % 65536u) * alpha) * rotationWeight; // 16 bit precision for frame index (should be enough to prevent floating point issues?)
+            return alpha * rotationWeight;
             //uint q = 256;
             //float qalpha = (floor(alpha * q) / q);
             //threshold += (frameIndex % q) * qalpha;
@@ -603,6 +645,22 @@ float applyTemporalDither(inout float threshold, uint frameIndex, float alpha, u
         default: // disabled
             return 1.0 / matrixWidthTimesHeight;
     }
+}
+
+float getBlueNoise3DThreshold(uint2 pixel, uint frameIndex)
+{
+    uint randomOffset = uint(getObjectHash() * 16*16*16);
+
+    uint3 texCoord = uint3(pixel, frameIndex);
+    // add random offset
+    texCoord.x += randomOffset % 16u;
+    texCoord.y += (randomOffset / 16u) % 16u;
+    texCoord.z += randomOffset / 256u;
+    // clamp to texture size
+    texCoord = texCoord % 16u;
+    float t = gBlueNoise3DTex[texCoord];
+    t = clamp(t, 1e-6, 1.0);
+    return t;
 }
 
 float getPixelDitherThreshold2x2(uint2 pixel, uint frameIndex, float3 posW, uint objectOffset, float alpha)
@@ -648,6 +706,7 @@ float getPixelDitherThreshold3x3(uint2 pixel, uint frameIndex, float3 posW, uint
     if(gAddNoiseOnPattern) 
     {
         ditherThreshold += hash4D(float4(posW, frameIndex)) * maxRng;
+        //ditherThreshold += getBlueNoise3DThreshold(pixel, frameIndex) * maxRng;
     }
     else
         ditherThreshold += 0.5 * maxRng;
@@ -687,19 +746,22 @@ float getPixelDitherThreshold4x4(uint2 pixel, uint objectOffet, float3 posW, uin
     return frac(ditherThreshold);
 }
 
+float getPixelDitherThreshold2x2x2(uint2 pixel, float3 posW, uint frameIndex, float alpha)
+{
+    float ditherThreshold = get2x2x2Threshold(uint3(pixel, frameIndex), uint(getObjectHash() * 1024)) / 8.0;
+    if (gAddNoiseOnPattern)
+    {
+        ditherThreshold += hash4D(float4(posW, frameIndex)) / 8.0;
+    }
+    else
+        ditherThreshold += 0.5 / 8.0;
+    
+    return ditherThreshold;
+}
+
+
+
 bool winBlueNoise3D(uint2 pixel, float alpha, uint frameIndex)
 {
-    uint randomOffset = uint(getObjectHash() * 16*16*16);
-
-    uint3 texCoord = uint3(pixel, frameIndex);
-    // add random offset
-    texCoord.x += randomOffset % 16u;
-    texCoord.y += (randomOffset / 16u) % 16u;
-    texCoord.z += randomOffset / 256u;
-    // clamp to texture size
-    texCoord = texCoord % 16u;
-    float t = gBlueNoise3DTex[texCoord];
-    t = clamp(t, 1e-6, 1.0);
-
-    return alpha >= t;
+    return alpha >= getBlueNoise3DThreshold(pixel, frameIndex);
 }

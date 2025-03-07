@@ -48,6 +48,7 @@ public:
         HashGrid,
         FractalDithering,
         BlueNoise3D,
+        PerPixel2x2x2,
         Disabled = 0xff,
     };
 
@@ -56,6 +57,7 @@ public:
         { DitherMode::PerPixel2x2, "PerPixel2x2" },
         { DitherMode::PerPixel3x3, "PerPixel3x3" },
         { DitherMode::PerPixel4x4, "PerPixel4x4" },
+        { DitherMode::PerPixel2x2x2, "PerPixel2x2x2" },
         { DitherMode::PerJitter, "PerJitter" },
         { DitherMode::RussianRoulette, "RussianRoulette" },
         { DitherMode::Periodic, "Periodic" },
