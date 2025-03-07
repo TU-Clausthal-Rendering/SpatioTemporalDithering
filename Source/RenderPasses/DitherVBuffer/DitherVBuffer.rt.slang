@@ -272,6 +272,10 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     if (!winFractalDither(alpha, s*v.texC, s*ddx, s*ddy, gScene.camera.data.projMat, gFrameCount))
         IgnoreHit();
     #endif
+    #if DITHER_MODE == DITHER_MODE_BLUE_NOISE3D
+    if (!winBlueNoise3D(pixel, alpha, gFrameCount))
+        IgnoreHit();
+    #endif
 }
 
 float2 calcMotionVector(uint2 pixel, uint2 frameDim, TriangleHit triangleHit, bool isTransparent)

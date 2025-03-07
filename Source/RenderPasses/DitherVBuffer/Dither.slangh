@@ -7,6 +7,7 @@
 #define DITHER_MODE_PERIODIC 5
 #define DITHER_MODE_HASH_GRID 6
 #define DITHER_MODE_FRACTAL_DITHERING 7
+#define DITHER_MODE_BLUE_NOISE3D 8
 
 #define TEMPORAL_DITHER_DISABLED 0
 #define TEMPORAL_DITHER_UNIFORM 1
@@ -38,6 +39,8 @@ Texture2D<float> gDitherRampTex; // converts opacity to threshold for the dither
 SamplerState gDitherSampler;
 Texture2D<float> gNoiseTex;
 SamplerState gNoiseSampler;
+
+Texture2DArray<float> gBlueNoise3DTex;
 
 StructuredBuffer<uint> gPermutations3x3; // permutations packed into 4 bytes
 
@@ -181,7 +184,8 @@ float hash3D(float3 v)
 // 4D hash function based on the 3D hash function
 float hash4D(float4 v)
 {
-    return hash(float2(hash3D(v.xyz), v.w));
+    //return hash(float2(hash3D(v.xyz), v.w));
+    return hash(float2(hash(v.xy), hash(v.zw)));
 }
 
 int imod4(int v)
@@ -681,4 +685,21 @@ float getPixelDitherThreshold4x4(uint2 pixel, uint objectOffet, float3 posW, uin
         ditherThreshold += 0.5 * maxRng;
 
     return frac(ditherThreshold);
+}
+
+bool winBlueNoise3D(uint2 pixel, float alpha, uint frameIndex)
+{
+    uint randomOffset = uint(getObjectHash() * 16*16*16);
+
+    uint3 texCoord = uint3(pixel, frameIndex);
+    // add random offset
+    texCoord.x += randomOffset % 16u;
+    texCoord.y += (randomOffset / 16u) % 16u;
+    texCoord.z += randomOffset / 256u;
+    // clamp to texture size
+    texCoord = texCoord % 16u;
+    float t = gBlueNoise3DTex[texCoord];
+    t = clamp(t, 1e-6, 1.0);
+
+    return alpha >= t;
 }

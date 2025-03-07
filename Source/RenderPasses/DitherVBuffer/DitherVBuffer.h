@@ -47,6 +47,7 @@ public:
         Periodic,
         HashGrid,
         FractalDithering,
+        BlueNoise3D,
         Disabled = 0xff,
     };
 
@@ -60,6 +61,7 @@ public:
         { DitherMode::Periodic, "Periodic" },
         { DitherMode::HashGrid, "HashGrid" },
         { DitherMode::FractalDithering, "FractalDithering" },
+        { DitherMode::BlueNoise3D, "BlueNoise3D" },
     });
 
     enum class TemporalDitherMode
@@ -203,6 +205,7 @@ private:
     ref<Sampler> mpFracSampler;
     ref<Texture> mpNoiseTex;
     ref<Sampler> mpNoiseSampler;
+    ref<Texture> mpBlueNoise3DTex;
     NoisePattern mNoisePattern = NoisePattern::Blue;
     bool mCullBackFaces = false;
     float mMinVisibility = 1.0f;
