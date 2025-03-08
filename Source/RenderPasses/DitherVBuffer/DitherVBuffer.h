@@ -151,14 +151,16 @@ public:
         DynamicBlue,
         StaticBayer,
         DynamicBayer,
+        SurfaceWhite,
     };
 
     FALCOR_ENUM_INFO(NoiseTopPattern, {
         {NoiseTopPattern::Disabled, "Disabled"},
         {NoiseTopPattern::StaticWhite, "StaticWhite"},
         {NoiseTopPattern::DynamicWhite, "DynamicWhite"},
+        {NoiseTopPattern::SurfaceWhite, "SurfaceWhite"},
         {NoiseTopPattern::StaticBlue, "StaticBlue"},
-        //{NoiseTopPattern::DynamicBlue, "DynamicBlue"},
+        {NoiseTopPattern::DynamicBlue, "DynamicBlue"},
         {NoiseTopPattern::StaticBayer, "StaticBayer"},
         //{NoiseTopPattern::DynamicBayer, "DynamicBayer"},
     });

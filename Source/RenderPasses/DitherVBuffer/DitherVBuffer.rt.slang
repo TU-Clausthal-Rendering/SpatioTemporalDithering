@@ -229,59 +229,61 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     alpha = lerp(alpha, dlssAlpha, gDLSSCorrectionStrength);
     #endif
 
+    DitherInfo d;
+    d.pixel = pixel;
+    d.frameIndex = gFrameCount;
+    d.posW = v.posW;
+    d.alpha = alpha;
+    d.posO = getPosO(triangleHit);
+    d.maxDerivO = max(length(dOdx), length(dOdy));
+    d.posUV = v.texC;
+    d.maxDerivUV = max(length(ddx), length(ddy));
+
     #if DITHER_MODE == DITHER_MODE_DISABLED
 
     #endif
     #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_2X2)
-    if (alpha < getPixelDitherThreshold2x2(pixel, gFrameCount, v.posW, rayData.anyCount, alpha))
+    if (alpha < getPixelDitherThreshold2x2(d))
             IgnoreHit();
     #endif
     #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_3X3)
-    if (alpha < getPixelDitherThreshold3x3(pixel, gFrameCount, v.posW, rayData.anyCount, alpha))
+    if (alpha < getPixelDitherThreshold3x3(d))
         IgnoreHit();
     #endif
     #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_4X4)
-    if (alpha < getPixelDitherThreshold4x4(pixel, rayData.anyCount, v.posW, gFrameCount, alpha))
+    if (alpha < getPixelDitherThreshold4x4(d))
             IgnoreHit();
     #endif
     #if (DITHER_MODE == DITHER_MODE_PER_PIXEL_2X2X2)
-    if (alpha < getPixelDitherThreshold2x2x2(pixel, v.posW, gFrameCount, alpha))
+    if (alpha < getPixelDitherThreshold2x2x2(d))
         IgnoreHit();
     #endif
     #if (DITHER_MODE == DITHER_MODE_DITHER_TEMPORAL_AA)
-    if (alpha < ditherTemporalAAThreshold(pixel, gFrameCount, v.posW))
+    if (alpha < ditherTemporalAAThreshold(d))
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_PER_JITTER
-    if(!isCovered(pixel, alpha, gSampleIndex, gSampleCount, gFrameCount, v.posW))
+    if(!isCovered(d, gSampleCount))
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_RUSSIAN_ROULETTE
-    if(!winRoulette(alpha, gFrameCount, v.posW))
+    if(!winRoulette(d))
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_PERIODIC
-    if(!winRotation(pixel, alpha, gFrameCount))
+    if(!winRotation(d))
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_HASH_GRID
-    //float maxDeriv = max(length(dOdx), length(dOdy));
-    //float3 posO = getPosO(triangleHit);
-    //if(!winHashGrid(alpha, posO, maxDeriv))
-    //    IgnoreHit();
-    float2 s = float2(1.0, 1.0);
-    float maxDeriv = max(length(ddx*s), length(ddy*s));
-    if(!winHashGrid2D(alpha, v.texC*s, maxDeriv, pixel, gFrameCount))
+    if(!winHashGrid2D(d))
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_FRACTAL_DITHERING
-    float maxDeriv = max(length(ddx), length(ddy));
-    float2 s = float2(1.0, 1.0);
-    if (!winFractalDither(alpha, s*v.texC, s*ddx, s*ddy, gScene.camera.data.projMat, gFrameCount))
+    if (!winFractalDither(d))
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_BLUE_NOISE3D
-    if (!winBlueNoise3D(pixel, alpha, gFrameCount))
+    if (!winBlueNoise3D(d))
         IgnoreHit();
     #endif
 }

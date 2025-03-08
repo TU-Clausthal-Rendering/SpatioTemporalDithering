@@ -206,17 +206,6 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
             setFractalDitherPattern(mFractalDitherPattern);
         }
     }
-    if(mDitherMode == DitherMode::FractalDithering || mDitherMode == DitherMode::HashGrid)
-    {
-        widget.var("Grid Scale", mGridScale, 0.0001f, 16.0f, 0.01f);
-    }
-    if(mDitherMode == DitherMode::HashGrid)
-    {
-        if(widget.dropdown("Noise Pattern", mNoisePattern))
-        {
-            createNoisePattern();
-        }
-    }
 
     const bool is2DDither = mDitherMode == DitherMode::PerPixel2x2 ||
         mDitherMode == DitherMode::PerPixel3x3 ||
@@ -229,9 +218,12 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
         widget.tooltip("Align motion vector to grid size to prevent issues when moving camera");
     }
 
+    bool useTopNoiseGrid = false;
     if(is2DDither || is3DDither || mDitherMode == DitherMode::DitherTemporalAA)
     {
         widget.dropdown("Noise on Top", mNoiseTopPattern);
+        if (mNoiseTopPattern == NoiseTopPattern::SurfaceWhite)
+            useTopNoiseGrid = true;
     }
 
     if(is2DDither)
@@ -242,6 +234,18 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
         if (mTemporalDitherMode != TemporalDitherMode::Disabled)
         {
             widget.var("Temporal Dither Length", mTemporalDitherLength, 1u, 16u);
+        }
+    }
+
+    if (mDitherMode == DitherMode::FractalDithering || mDitherMode == DitherMode::HashGrid || useTopNoiseGrid)
+    {
+        widget.var("Grid Scale", mGridScale, 0.0001f, 16.0f, 0.01f);
+    }
+    if (mDitherMode == DitherMode::HashGrid || useTopNoiseGrid)
+    {
+        if (widget.dropdown("Noise Pattern", mNoisePattern))
+        {
+            createNoisePattern();
         }
     }
 

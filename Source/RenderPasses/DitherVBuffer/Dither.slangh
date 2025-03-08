@@ -23,6 +23,7 @@
 #define NOISE_TOP_DYNAMIC_BLUE 4
 #define NOISE_TOP_STATIC_BAYER 5
 #define NOISE_TOP_DYNAMIC_BAYER 6
+#define NOISE_TOP_SURFACE_WHITE 7
 
 #define OBJECT_HASH_QUADS 0
 #define OBJECT_HASH_GEOMETRY 0
@@ -67,14 +68,25 @@ cbuffer DitherConstants
     uint gNoiseTop;
 };
 
+// common variables used in the dithering functions
+struct DitherInfo
+{
+    uint2 pixel;
+    uint frameIndex; // usually for per frame rng
+    float3 posW; // world position (for white noise)
+    float alpha; // object alpha
+    float3 posO; // object space pos
+    float maxDerivO; // max derivative in object space
+    float2 posUV; // uv coordinate
+    float maxDerivUV; // max derivative in uv
+};
+
 static const int4x4 ditherMatrix = int4x4(
         float4(0, 8, 2, 10),
         float4(12, 4, 14, 6),
         float4(3, 11, 1, 9),
         float4(15, 7, 13, 5)
     );
-
-
 
 uint3x3 get3x3Permutation(uint id)
 {
@@ -182,30 +194,6 @@ uint get2x2x2Threshold(uint3 pos, uint offset)
     return v4[index] * 2u + pos.z;
 }
 
-uint spatialHash(uint4 v)
-{
-    return v.x * 73856093u + v.y * 19349663u + v.z * 83492791u + v.w * 6700417u;
-}
-
-uint spatialHash(float4 v)
-{
-    return spatialHash(asuint(v));
-}
-
-float GPURnd(float4 state)
-{
-    const float4 q = float4(1225.0, 1585.0, 2457.0, 2098.0);
-    const float4 r = float4(1112.0, 367.0, 92.0, 265.0);
-    const float4 a = float4(3423.0, 2646.0, 1707.0, 1999.0);
-    const float4 m = float4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-    
-    float4 beta = floor(state / q);
-    float4 p = a * (state - beta * q) - beta * r;
-    beta = (sign(-p) + float4(1.0)) * float4(0.5) * m;
-    state = (p + beta);
-    
-    return frac(dot(state / m, float4(1.0, -1.0, 1.0, -1.0)));
-}
 
 float hash1D(float v)
 {
@@ -237,37 +225,102 @@ float hash4D(float4 v)
     return hash(float2(hash(v.xy), hash(v.zw)));
 }
 
-float getTopNoise(uint2 pixel, uint frameIndex, float3 posW)
+// from Hashed Alpha Testing
+float evalHashGrid3D(DitherInfo d, float g_HashScale)
+{
+    float pixScale = 1.0 / (g_HashScale * d.maxDerivO);
+
+    // Find two nearest log-discretized noise scales
+    float2 pixScales = float2(
+        exp2(floor(log2(pixScale))),
+        exp2(ceil(log2(pixScale))) 
+    );
+
+    // Compute alpha thresholds at our two noise scales
+    float2 alpha = float2(
+        hash3D(floor(pixScales.x * d.posO)),
+        hash3D(floor(pixScales.y * d.posO))
+    );
+
+    // Factor to interpolate lerp with
+    float lerpFactor = frac( log2(pixScale) );
+    
+    // Interpolate alpha threshold from noise at two scales
+    float x = (1.0 - lerpFactor) * alpha.x + lerpFactor * alpha.y;
+    
+    // Pass into CDF to compute uniformly distrib threshold
+    float a = min(lerpFactor, 1.0 - lerpFactor);
+    float3 cases = float3( 
+        x * x / (2 * a * (1.0 - a)),
+        (x - 0.5 * a) / (1.0 - a),
+        1.0 - ((1.0 - x) * (1.0 - x)/(2.0 * a * (1.0 - a)))
+    );
+
+    float threshold = (x < (1-a)) ? ((x < a) ? cases.x : cases.y) : cases.z;
+    threshold = clamp(threshold, 1e-6, 1.0);
+    return threshold;
+}
+
+float evalHashGrid2D(DitherInfo d, float g_HashScale)
+{
+    float pixScale = 1.0 / (g_HashScale * d.maxDerivUV);
+    
+    // Find two nearest log-discretized noise scales
+    float2 pixScales = float2(
+        exp2(floor(log2(pixScale))),
+        exp2(ceil(log2(pixScale))) 
+    );
+
+    // Compute alpha thresholds at our two noise scales
+    float2 alpha = float2(
+        noise(floor(pixScales.x * d.posUV)),
+        noise(floor(pixScales.y * d.posUV))
+    );
+    alpha = 1.0 - alpha;
+
+    // Factor to interpolate lerp with
+    float lerpFactor = frac( log2(pixScale) );
+    //lerpFactor = 1.0;
+    //float lerpFactor = frac( pixScale );
+    
+    // Interpolate alpha threshold from noise at two scales
+    float x = (1.0 - lerpFactor) * alpha.x + lerpFactor * alpha.y;
+    
+    // Pass into CDF to compute uniformly distrib threshold
+    float a = min(lerpFactor, 1.0 - lerpFactor);
+    float3 cases = float3( 
+        x * x / (2 * a * (1.0 - a)),
+        (x - 0.5 * a) / (1.0 - a),
+        1.0 - ((1.0 - x) * (1.0 - x)/(2.0 * a * (1.0 - a)))
+    );
+
+    float threshold = (x < (1-a)) ? ((x < a) ? cases.x : cases.y) : cases.z;
+
+    threshold = clamp(threshold, 1e-6, 1.0);
+    return threshold;
+}
+
+float getTopNoise(DitherInfo d)
 {
     switch(gNoiseTop)
     {
         case NOISE_TOP_STATIC_WHITE:
-            return hash3D(posW);
+            return hash3D(d.posW);
         case NOISE_TOP_DYNAMIC_WHITE:
-            return hash4D(float4(posW, frameIndex));
+            return hash4D(float4(d.posW, d.frameIndex));
         case NOISE_TOP_STATIC_BLUE:
-            return gBlueNoise64x64Tex[pixel % 64u];
+            return gBlueNoise64x64Tex[d.pixel % 64u];
         case NOISE_TOP_DYNAMIC_BLUE:
-            return gBlueNoise3DTex[uint3(pixel, frameIndex) % 16u];
+            return gBlueNoise3DTex[uint3(d.pixel, d.frameIndex) % 16u];
         case NOISE_TOP_STATIC_BAYER:
-            return gBayerNoise64Tex[pixel % 64u];
-
+            return gBayerNoise64Tex[d.pixel % 64u];
+        case NOISE_TOP_SURFACE_WHITE:
+            return evalHashGrid2D(d, gGridScale);
+            //return evalHashGrid3D(d, gGridScale);
         case NOISE_TOP_DISABLED:
         default:
             return 0.5;
     }
-}
-
-int imod4(int v)
-{
-    return (v % 4 + 4) % 4;
-}
-
-float hashDither(float2 v)
-{
-    int x = imod4(int(v.x));
-    int y = imod4(int(v.y));
-    return (ditherMatrix[x][y] + 0.5) / 16.0;
 }
 
 bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x4 cameraProjection, uint frameCount)
@@ -415,137 +468,29 @@ bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x
     else return pattern < opacity;
 }
 
-bool winHashGrid2D(float opacity, float2 coord, float maxDeriv, uint2 pixel, uint frameCount)
+bool winHashGrid2D(DitherInfo d)
 {
-    // from Hashed Alpha Testing
-    //float g_HashScale = 1.0;
-    float g_HashScale = gGridScale; // subpixel scale (expect ~4*4 = 16 subpixels)
-
-    float pixScale = 1.0 / (g_HashScale * maxDeriv);
-
-    // version without LOD
-    //pixScale = ceil(pixScale);
-    //float threshold = hash((pixScale * coord));
-
-    
-    // Find two nearest log-discretized noise scales
-    float2 pixScales = float2(
-        exp2(floor(log2(pixScale))),
-        exp2(ceil(log2(pixScale))) 
-        //floor(pixScale),
-        //ceil(pixScale) 
-    );
-
-    uint2 offset = 0;
-    //offset.x = frameCount % 2u;
-    //offset.y = (frameCount / 2u) % 2u;
-
-    // Compute alpha thresholds at our two noise scales
-    float2 alpha = float2(
-        //hash(floor(pixScales.x * coord)),
-        //hash(floor(pixScales.y * coord))
-        noise(floor(pixScales.x * coord) + float2(offset)),
-        noise(floor(pixScales.y * coord) + float2(offset))
-    );
-    alpha = 1.0 - alpha;
-
-    int4 hashPixel = int4(floor(pixScales.x * coord), floor(pixScales.y * coord));
-    //int2 stratIndex = int2(ditherMatrix[imod4(hashPixel.x)][imod4(hashPixel.y)], ditherMatrix[imod4(hashPixel.z)][imod4(hashPixel.w)]);
-    //int stratIndex = ditherMatrix[imod4(hashPixel.x)][imod4(hashPixel.y)];
-    //int stratIndex = (ditherMatrix[pixel.x % 4][pixel.y % 4] + frameCount) % 16;
-    //int stratIndex = ((pixel.x % 4) + 4 * (pixel.y % 4) + frameCount) % 16;
-    // augment alpha for stratified index
-    //alpha = (alpha + float2(stratIndex)) / 16.0;
-
-    // Factor to interpolate lerp with
-    float lerpFactor = frac( log2(pixScale) );
-    //lerpFactor = 1.0;
-    //float lerpFactor = frac( pixScale );
-    
-    // Interpolate alpha threshold from noise at two scales
-    float x = (1.0 - lerpFactor) * alpha.x + lerpFactor * alpha.y;
-    
-    // Pass into CDF to compute uniformly distrib threshold
-    float a = min(lerpFactor, 1.0 - lerpFactor);
-    float3 cases = float3( 
-        x * x / (2 * a * (1.0 - a)),
-        (x - 0.5 * a) / (1.0 - a),
-        1.0 - ((1.0 - x) * (1.0 - x)/(2.0 * a * (1.0 - a)))
-    );
-
-    float threshold = (x < (1-a)) ? ((x < a) ? cases.x : cases.y) : cases.z;
-
-    // stratify here
-    //float rng1 = hash3D(float3(GeometryIndex(), PrimitiveIndex() / 2u, InstanceID()));//threshold;//(ditherMatrix[imod4(hashPixel.x)][imod4(hashPixel.y)]) / 16.0;
-    //float rng2 = hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u));
-    //int i = frameCount % 16;
-    //i = ((pixel.x % 4) + 4 * (pixel.y % 4) + frameCount) % 16;
-    //int a0 = int(16 * rng1);
-    //int aplus = 2 * int(0.5 * 16.0 * rng2) + 1;
-    //threshold = (threshold + float((a0 + i * aplus) % 16)) / 16.0;
-
-    
-
-
-    threshold = clamp(threshold, 1e-6, 1.0);
-    
-
-
-    return opacity >= threshold;
+    float threshold = evalHashGrid2D(d, gGridScale);
+    return d.alpha >= threshold;
 }
 
-bool winHashGrid(float opacity, float3 coord, float maxDeriv)
+bool winHashGrid(DitherInfo d)
 {
-    // from Hashed Alpha Testing
-    //float g_HashScale = 1.0;
-    float g_HashScale = gGridScale; // subpixel scale (expect ~4*4 = 16 subpixels)
-
-    float pixScale = 1.0 / (g_HashScale * maxDeriv);
-
-    // Find two nearest log-discretized noise scales
-    float2 pixScales = float2(
-        exp2(floor(log2(pixScale))),
-        exp2(ceil(log2(pixScale))) 
-    );
-
-    // Compute alpha thresholds at our two noise scales
-    float2 alpha = float2(
-        hash3D(floor(pixScales.x * coord)),
-        hash3D(floor(pixScales.y * coord))
-    );
-
-    // Factor to interpolate lerp with
-    float lerpFactor = frac( log2(pixScale) );
+    float threshold = evalHashGrid3D(d, gGridScale);
     
-    // Interpolate alpha threshold from noise at two scales
-    float x = (1.0 - lerpFactor) * alpha.x + lerpFactor * alpha.y;
-    
-    // Pass into CDF to compute uniformly distrib threshold
-    float a = min(lerpFactor, 1.0 - lerpFactor);
-    float3 cases = float3( 
-        x * x / (2 * a * (1.0 - a)),
-        (x - 0.5 * a) / (1.0 - a),
-        1.0 - ((1.0 - x) * (1.0 - x)/(2.0 * a * (1.0 - a)))
-    );
-
-    float threshold = (x < (1-a)) ? ((x < a) ? cases.x : cases.y) : cases.z;
-    threshold = clamp(threshold, 1e-6, 1.0);
-    
-    return opacity >= threshold;
+    return d.alpha >= threshold;
 }
 
-bool winRoulette(float alpha, uint frameIndex, float3 posW)
+bool winRoulette(DitherInfo d)
 {
     // quantize posW
     //posW = floor(posW * 1000.0) / 1000.0;
-    float rng = hash4D(float4(posW, frameIndex));
-    //float rng = GPURnd(float4(posW, frameIndex));
-    //float rng = (spatialHash(float4(posW, frameIndex)) % 999331u) / 999331.0;
-    if(rng > alpha) return false;
+    float rng = hash4D(float4(d.posW, d.frameIndex));
+    if(rng > d.alpha) return false;
     return true;
 }
 
-bool winRotation(uint2 pixel, float alpha, uint frameIndex)
+bool winRotation(DitherInfo d)
 {
     // quantize alpha?
     //alpha = floor(alpha * 16.0) / 16.0;
@@ -554,11 +499,11 @@ bool winRotation(uint2 pixel, float alpha, uint frameIndex)
     //rng += hash(float2(pixel));
     //frameIndex = frameIndex % 2048;
     //rng += float((pixel.x % 4u) + 4u * (pixel.y % 4u)) / 16.0;
-    rng += ditherMatrix[pixel.x % 4u][pixel.y % 4u] / 16.0;
+    rng += ditherMatrix[d.pixel.x % 4u][d.pixel.y % 4u] / 16.0;
     rng += hash(float2(InstanceID(), GeometryIndex()));
     //rng = hash4D(float4(pixel.x, pixel.y, InstanceID(), GeometryIndex()));
 
-    return frac(rng + frameIndex * alpha) < alpha;
+    return frac(rng + d.frameIndex * d.alpha) < d.alpha;
 }
 
 uint ZOrderCurveIndex(uint2 coord)
@@ -583,23 +528,23 @@ uint ZOrderCurveIndex(uint2 coord)
     return x | (y << 1);
 }
 
-bool isCovered(uint2 pixel, float alpha, uint sampleIndex, uint sampleCount, uint frameIndex, float3 posW)
+bool isCovered(DitherInfo d, uint sampleCount)
 {
 
 
     // offset sample index
     //sampleIndex += (pixel.y % 4u) + 4u * (pixel.x % 4u);
-    sampleIndex += ditherMatrix[pixel.x % 4u][pixel.y % 4u];
+    d.frameIndex += ditherMatrix[d.pixel.x % 4u][d.pixel.y % 4u];
     //sampleIndex += uint(hash(float2(pixel)) * 256);
     //sampleIndex += uint(hash(float2(pixel.x % 4u, pixel.y % 4u)) * sampleCount);
     //sampleIndex += ZOrderCurveIndex(pixel);
-    sampleIndex = sampleIndex % sampleCount;
+    d.frameIndex = d.frameIndex % sampleCount;
 
-    float hashPixel = hash(float2(pixel));
+    float hashPixel = hash(float2(d.pixel));
     float rng = 0.5; // TODO should be a varying value
     //float rng = hash(float2(hashPixel, float(frameIndex/sampleCount)));
     //rng = hash1D(float(frameIndex) / float(sampleCount));
-    int R = int(floor(alpha * sampleCount + rng));
+    int R = int(floor(d.alpha * sampleCount + rng));
     if(R >= sampleCount) return true;
     //float rng2 = hash(float2(pixel));
     //float rng2 = hash4D(float4(hashPixel, InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u));
@@ -616,7 +561,7 @@ bool isCovered(uint2 pixel, float alpha, uint sampleIndex, uint sampleCount, uin
     //mask = 0x3F; // first 6 bits only => very visible flicker
     //mask = UPS; // 6 bits set, same corner in halton sequence => visible flicker
 
-    if(mask & (1u << sampleIndex)) return true;
+    if(mask & (1u << d.frameIndex)) return true;
     return false;
 }
 
@@ -680,11 +625,11 @@ float applyTemporalDither(inout float threshold, uint frameIndex, float alpha, u
     }
 }
 
-float getBlueNoise3DThreshold(uint2 pixel, uint frameIndex)
+float getBlueNoise3DThreshold(DitherInfo d)
 {
     uint randomOffset = uint(getObjectHash() * 16*16*16);
 
-    uint3 texCoord = uint3(pixel, frameIndex);
+    uint3 texCoord = uint3(d.pixel, d.frameIndex);
     // add random offset
     texCoord.x += randomOffset % 16u;
     texCoord.y += (randomOffset / 16u) % 16u;
@@ -696,34 +641,34 @@ float getBlueNoise3DThreshold(uint2 pixel, uint frameIndex)
     return t;
 }
 
-float getPixelDitherThreshold2x2(uint2 pixel, uint frameIndex, float3 posW, uint objectOffset, float alpha)
+float getPixelDitherThreshold2x2(DitherInfo d)
 {
     // use random offset to ensure that each primitive uses a different mask
     uint randomOffset = uint(getObjectHash() * 7919);
     //if (objectOffset <= 4) randomOffset = objectOffset;
 
     uint4 mask = get2x2Permutation(randomOffset); // mask with [0, 1, 2, 3] permutation
-    uint2 p = pixel;
+    uint2 p = d.pixel;
     if (gRotatePattern)
-        p = applyRotation(p, frameIndex, 2, 2); // rotate lookup based on frame index
+        p = applyRotation(p, d.frameIndex, 2, 2); // rotate lookup based on frame index
     uint lookup = (p.x % 2u) + 2u * (p.y % 2u);
     uint v = mask[lookup]; // 0, 1, 2 or 3
     
     float ditherThreshold = v / 4.0;
-    float maxRng = applyTemporalDither(ditherThreshold, frameIndex, alpha, 4);
+    float maxRng = applyTemporalDither(ditherThreshold, d.frameIndex, d.alpha, 4);
     
-    ditherThreshold += maxRng * getTopNoise(pixel, frameIndex, posW);
+    ditherThreshold += maxRng * getTopNoise(d);
     
     return frac(ditherThreshold);
 }
 
-float getPixelDitherThreshold3x3(uint2 pixel, uint frameIndex, float3 posW, uint objectOffset, float alpha)
+float getPixelDitherThreshold3x3(DitherInfo d)
 {
     // use random offset to ensure that each primitive uses a different mask
     uint randomOffset = uint(getObjectHash() * 7919);
-    uint2 p = pixel;
+    uint2 p = d.pixel;
     if(gRotatePattern)
-        p = applyRotation(p, frameIndex, 3, 3);
+        p = applyRotation(p, d.frameIndex, 3, 3);
     
     p = p % 3u;
 
@@ -731,20 +676,20 @@ float getPixelDitherThreshold3x3(uint2 pixel, uint frameIndex, float3 posW, uint
     uint v = mask[p.y][p.x]; // 0-8
     
     float ditherThreshold = v / 9.0;
-    float maxRng = applyTemporalDither(ditherThreshold, frameIndex, alpha, 9);
+    float maxRng = applyTemporalDither(ditherThreshold, d.frameIndex, d.alpha, 9);
     
-    ditherThreshold += maxRng * getTopNoise(pixel, frameIndex, posW);
+    ditherThreshold += maxRng * getTopNoise(d);
     
     return frac(ditherThreshold);
 }
 
-float getPixelDitherThreshold4x4(uint2 pixel, uint objectOffet, float3 posW, uint frameIndex, float alpha)
+float getPixelDitherThreshold4x4(DitherInfo d)
 {
     uint randomOffset = uint(getObjectHash() * 7919);
 
-    uint2 p = pixel;
+    uint2 p = d.pixel;
     if (gRotatePattern)
-        p = applyRotation(p, frameIndex, 4, 4);
+        p = applyRotation(p, d.frameIndex, 4, 4);
     
     //if(gRotatePattern) pixel += DecodeMorton2D(frameIndex);
     // TODO replace lookup with precomputed matrices
@@ -759,26 +704,26 @@ float getPixelDitherThreshold4x4(uint2 pixel, uint objectOffet, float3 posW, uin
     );
     
     float ditherThreshold = ditherMatrix[p.y][p.x] / 16.0;
-    float maxRng = applyTemporalDither(ditherThreshold, frameIndex, alpha, 16);
+    float maxRng = applyTemporalDither(ditherThreshold, d.frameIndex, d.alpha, 16);
     
-    ditherThreshold += maxRng * getTopNoise(pixel, frameIndex, posW);
+    ditherThreshold += maxRng * getTopNoise(d);
 
     return frac(ditherThreshold);
 }
 
-float getPixelDitherThreshold2x2x2(uint2 pixel, float3 posW, uint frameIndex, float alpha)
+float getPixelDitherThreshold2x2x2(DitherInfo d)
 {
-    float ditherThreshold = get2x2x2Threshold(uint3(pixel, frameIndex), uint(getObjectHash() * 1024)) / 8.0;
-    ditherThreshold += getTopNoise(pixel, frameIndex, posW) / 8.0;
+    float ditherThreshold = get2x2x2Threshold(uint3(d.pixel, d.frameIndex), uint(getObjectHash() * 1024)) / 8.0;
+    ditherThreshold += getTopNoise(d) / 8.0;
     
     return ditherThreshold;
 }
 
 
 
-bool winBlueNoise3D(uint2 pixel, float alpha, uint frameIndex)
+bool winBlueNoise3D(DitherInfo d)
 {
-    return alpha >= getBlueNoise3DThreshold(pixel, frameIndex);
+    return d.alpha >= getBlueNoise3DThreshold(d);
 }
 
 // Hardcoded version of the i-th permutation of [0,1,2,3,4].
@@ -916,10 +861,10 @@ void GetPermutation5(uint i, out int result[5])
 
 
 // from unreal engine DitherTemporalAA
-float ditherTemporalAAThreshold(uint2 pixel, uint frameIndex, float3 posW)
+float ditherTemporalAAThreshold(DitherInfo d)
 {
     // 5 translucency steps, high frequency regular pattern
-    uint2 p = pixel + uint2(frameIndex);
+    uint2 p = d.pixel + uint2(d.frameIndex);
     uint stratifyIndex = (p.x + p.y * 2u) % 5;
 
     #define USE_DITHER_TEMPORAL_AA_MASK_WORKAROUND 1
@@ -932,7 +877,7 @@ float ditherTemporalAAThreshold(uint2 pixel, uint frameIndex, float3 posW)
 
     // random noise to break up the 5 steps
     //float blue = gBlueNoise64x64Tex[pixel % 64u];
-    float blue = getTopNoise(pixel, frameIndex, posW); // generalized with more noise types beside static blue
+    float blue = getTopNoise(d); // generalized with more noise types beside static blue
     // blue can be set to zero by the user in UE4 (prevents usage of blue noise)
 
     //float t = (stratifyIndex + blue + rng) / 6.0; // original threshold, but biased
