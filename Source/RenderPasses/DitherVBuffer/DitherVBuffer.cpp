@@ -228,15 +228,15 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
             useTopNoiseGrid = true;
     }
 
-    if(is2DDither)
+    if(is2DDither || mDitherMode == DitherMode::HashGrid)
     {
         widget.checkbox("Rotate Pattern", mRotatePattern);
         widget.tooltip("Rotates the per-pixel dither pattern based on the frame index");
-        widget.dropdown("Temporal Dither", mTemporalDitherMode);
+        /*widget.dropdown("Temporal Dither", mTemporalDitherMode);
         if (mTemporalDitherMode != TemporalDitherMode::Disabled)
         {
             widget.var("Temporal Dither Length", mTemporalDitherLength, 1u, 16u);
-        }
+        }*/
     }
 
     if (mDitherMode == DitherMode::FractalDithering || mDitherMode == DitherMode::HashGrid || useTopNoiseGrid)

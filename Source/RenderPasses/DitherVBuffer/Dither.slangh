@@ -262,7 +262,7 @@ float evalHashGrid3D(DitherInfo d, float g_HashScale)
     return threshold;
 }
 
-float evalHashGrid2D(DitherInfo d, float g_HashScale)
+float evalHashGrid2D(DitherInfo d, float g_HashScale, bool rotate = false)
 {
     float pixScale = 1.0 / (g_HashScale * d.maxDerivUV);
     
@@ -272,10 +272,22 @@ float evalHashGrid2D(DitherInfo d, float g_HashScale)
         exp2(ceil(log2(pixScale))) 
     );
 
+    float4 coords = float4(floor(pixScales.x * d.posUV), floor(pixScales.y * d.posUV));
+    if(rotate)
+    {
+        uint width = 3; // width for rotation
+        uint xoff = d.frameIndex % width;
+        uint yoff = (d.frameIndex / width);
+        if (yoff % 2u) xoff = width - xoff - 1; // serpentine raster
+        yoff = yoff % width;
+        coords.xz += xoff;
+        coords.yw += yoff;
+    }
+
     // Compute alpha thresholds at our two noise scales
     float2 alpha = float2(
-        noise(floor(pixScales.x * d.posUV)),
-        noise(floor(pixScales.y * d.posUV))
+        noise(coords.xy),
+        noise(coords.zw)
     );
     alpha = 1.0 - alpha;
 
@@ -471,7 +483,7 @@ bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x
 
 bool winHashGrid2D(DitherInfo d)
 {
-    float threshold = evalHashGrid2D(d, gGridScale);
+    float threshold = evalHashGrid2D(d, gGridScale, gRotatePattern);
     return d.alpha >= threshold;
 }
 
