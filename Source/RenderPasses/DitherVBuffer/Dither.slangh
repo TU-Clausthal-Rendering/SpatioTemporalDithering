@@ -586,9 +586,11 @@ uint2 DecodeMorton2D(uint morton) {
 
 uint2 applyRotation(uint2 pixel, uint offset, uint width, uint height)
 {
-    offset = offset % (width * height);
-    pixel.x += offset % width;
-    pixel.y += offset / width;
+    uint xoff = offset % width;
+    uint yoff = (offset / width);
+    if (yoff % 2u) xoff = width - xoff - 1; // serpentine raster
+    pixel.x += xoff;
+    pixel.y += yoff;
     return pixel;
 }
 
