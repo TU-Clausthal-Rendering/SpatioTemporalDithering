@@ -232,6 +232,9 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     alpha = lerp(alpha, dlssAlpha, gDLSSCorrectionStrength);
     #endif
 
+    uint2 texDim = material.getDimensions(gScene.materials);
+    float2 texAspect = float2(1.0, float(texDim.y) / float(texDim.x));
+
     DitherInfo d;
     d.pixel = pixel;
     d.frameIndex = gFrameCount;
@@ -239,8 +242,8 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     d.alpha = alpha;
     d.posO = getPosO(triangleHit);
     d.maxDerivO = max(length(dOdx), length(dOdy));
-    d.posUV = v.texC;
-    d.maxDerivUV = max(length(ddx), length(ddy));
+    d.posUV = v.texC * texAspect;
+    d.maxDerivUV = max(length(ddx * texAspect), length(ddy * texAspect));
 
     #if DITHER_MODE == DITHER_MODE_DISABLED
 

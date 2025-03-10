@@ -48,10 +48,10 @@ struct MaterialSystem
     StructuredBuffer<MaterialDataBlob> materialData;                            ///< Material parameters. The format of the data blob depends on the material type.
     SamplerState materialSamplers[MATERIAL_SYSTEM_SAMPLER_DESC_COUNT];          ///< Sampler states for all materials. TODO: Make this an unbounded array (see #1321).
 
-    /// Texture resources for all materials. TODO: Make this an unbounded array (see #1321).
+    // Texture resources for all materials. TODO: Make this an unbounded array (see #1321).
     Texture2D<float4> materialTextures[ArrayMax<1, MATERIAL_SYSTEM_TEXTURE_DESC_COUNT>.value];
 
-    /// Buffer resources for all materials. TODO: Make this an unbounded array (see #1321).
+    // Buffer resources for all materials. TODO: Make this an unbounded array (see #1321).
     ByteAddressBuffer materialBuffers[ArrayMax<1, MATERIAL_SYSTEM_BUFFER_DESC_COUNT>.value];
 
     Texture3D<float4> materialTextures3D[ArrayMax<1, MATERIAL_SYSTEM_TEXTURE_3D_DESC_COUNT>.value];

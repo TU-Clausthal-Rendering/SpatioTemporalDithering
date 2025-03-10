@@ -67,4 +67,16 @@ struct PBRTDielectricMaterial : MaterialBase, IMaterial
         SamplerState s = ms.getTextureSampler(header.getDefaultTextureSamplerID());
         return ms.sampleTexture(data.texBaseColor, s, v.texC, data.baseColor, lod).a;
     }
+
+    uint2 getDimensions(const MaterialSystem ms)
+    {
+        let handle = data.texBaseColor;
+        let rhandle = ms.getResolvedTextureHandle(handle);
+        uint2 res = 1u;
+        if (rhandle.getMode() == TextureHandle::Mode::Texture)
+        {
+            ms.materialTextures[rhandle.getTextureID()].GetDimensions(res.x, res.y);
+        }
+        return res;
+    }
 };

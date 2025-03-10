@@ -73,6 +73,9 @@ interface IMaterial
     */
     float evalOpacity(const MaterialSystem ms, const VertexData v, const ITextureSampler lod);
 
+    // gets dimension of the underlying texture. Prefferably albedo, otherwise alpha, otherwise return (1, 1)
+    uint2 getDimensions(const MaterialSystem ms);
+
     /** Returns volume properties that are homogeneous for the whole volume (do not depend on the hitpoint).
      */
     VolumeProperties getHomogeneousVolumeProperties(const MaterialSystem ms, const uint materialID);
