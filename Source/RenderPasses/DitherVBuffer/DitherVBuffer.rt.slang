@@ -52,55 +52,6 @@ struct RayData
     float minAlphaT; // RayT value of closest alpha-blended hit
 };
 
-void computeRayDifferentials(const TriangleHit hit, float3 rayDir, float hitT, const Camera camera, float2 frameDim, out float2 ddx, out float2 ddy, out float3 dOdx, out float3 dOdy)
-{
-    // Ray differentials
-    float3 P[3];
-    gScene.getVertexPositionsW(hit.instanceID, hit.primitiveIndex, P);
-    float3 e1 = P[1] - P[0];
-    float3 e2 = P[2] - P[0];
-    float3 d = rayDir;
-    float k = dot(cross(e1, e2), d);
-    k = abs(k) > 1e-20f ? rcp(k) : 0.0f;
-    float3 cu = cross(e2, d);
-    float3 cv = cross(d, e1);
-    // Assumes a normalized ray direction
-    float3 dx = camera.data.cameraU * 2.f / (camera.data.focalDistance * frameDim.x); // dDdx in ray gen
-    float3 dy = camera.data.cameraV * 2.f / (camera.data.focalDistance * frameDim.y); // dDdy in ray gen
-    float3 q = dx * hitT; // Transfer to primary hit
-    float3 r = dy * hitT;
-    float dudx = k * dot(cu, q);
-    float dudy = k * dot(cu, r);
-    float dvdx = k * dot(cv, q);
-    float dvdy = k * dot(cv, r);
-    // Compute texture differentials
-    float2 T[3];
-    gScene.getVertexTexCoords(hit.instanceID, hit.primitiveIndex, T);
-    float2 g1 = T[1] - T[0];
-    float2 g2 = T[2] - T[0];
-    float dsdx = (dudx * g1.x + dvdx * g2.x);
-    float dtdx = (dudx * g1.y + dvdx * g2.y);
-    float dsdy = (dudy * g1.x + dvdy * g2.x);
-    float dtdy = (dudy * g1.y + dvdy * g2.y);
-    ddx = float2(dsdx, dtdx);
-    ddy = float2(dsdy, dtdy);
-    // Compute object space differentials
-    float3 O[3];
-    gScene.getVertexPositionsO(hit.instanceID, hit.primitiveIndex, O);
-    float3 og1 = O[1] - O[0];
-    float3 og2 = O[2] - O[0];
-    dOdx = dudx * og1 + dvdx * og2;
-    dOdy = dudy * og1 + dvdy * og2;
-}
-
-float3 getPosO(const TriangleHit hit)
-{
-    float3 O[3];
-    gScene.getVertexPositionsO(hit.instanceID, hit.primitiveIndex, O);
-    float3 barycentrics = float3(1.0 - hit.barycentrics.x - hit.barycentrics.y, hit.barycentrics.x, hit.barycentrics.y);
-    return barycentrics.x * O[0] + barycentrics.y * O[1] + barycentrics.z * O[2];
-}
-
 // posV: view space position (negative z)
 // return: texture uv [0, 1]
 float2 ViewSpaceToUV(float3 posV)
@@ -196,8 +147,7 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     triangleHit.primitiveIndex = PrimitiveIndex();
     triangleHit.barycentrics = attribs.barycentrics;
     float2 ddx, ddy; // texture differentials
-    float3 dOdx, dOdy; // object space differentials
-    computeRayDifferentials(triangleHit, WorldRayDirection(), RayTCurrent(), gScene.camera, float2(frameDim), ddx, ddy, dOdx, dOdy);
+    computeRayDifferentials(triangleHit, WorldRayDirection(), RayTCurrent(), gScene.camera, float2(frameDim), ddx, ddy);
 
     #if ALPHA_TEXTURE_LOD != 0
     let lod = ExplicitGradientTextureSampler(ddx, ddy);
@@ -238,8 +188,6 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     d.frameIndex = gFrameCount;
     d.posW = v.posW;
     d.alpha = alpha;
-    d.posO = getPosO(triangleHit);
-    d.maxDerivO = max(length(dOdx), length(dOdy));
     d.posUV = v.texC * texAspect;
     d.maxDerivUV = max(length(ddx * texAspect), length(ddy * texAspect));
 

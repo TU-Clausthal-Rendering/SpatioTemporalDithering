@@ -69,8 +69,6 @@ struct DitherInfo
     uint frameIndex; // usually for per frame rng
     float3 posW; // world position (for white noise)
     float alpha; // object alpha
-    float3 posO; // object space pos
-    float maxDerivO; // max derivative in object space
     float2 posUV; // uv coordinate
     float maxDerivUV; // max derivative in uv
 };
@@ -212,12 +210,12 @@ bool winHashGrid2D(DitherInfo d)
     return d.alpha >= threshold;
 }
 
-bool winHashGrid(DitherInfo d)
-{
-    float threshold = evalHashGrid3D(d, gGridScale);
-    
-    return d.alpha >= threshold;
-}
+//bool winHashGrid(DitherInfo d)
+//{
+//    float threshold = evalHashGrid3D(d, gGridScale);
+//    
+//    return d.alpha >= threshold;
+//}
 
 bool winRoulette(DitherInfo d)
 {
@@ -644,7 +642,7 @@ bool winFractalDither(DitherInfo d, float2 dx, float2 dy, float4x4 cameraProject
 }
 
 // from Hashed Alpha Testing
-float evalHashGrid3D(DitherInfo d, float g_HashScale)
+/*float evalHashGrid3D(DitherInfo d, float g_HashScale)
 {
     float pixScale = 1.0 / (g_HashScale * d.maxDerivO);
 
@@ -677,7 +675,7 @@ float evalHashGrid3D(DitherInfo d, float g_HashScale)
     float threshold = (x < (1 - a)) ? ((x < a) ? cases.x : cases.y) : cases.z;
     threshold = clamp(threshold, 1e-6, 1.0);
     return threshold;
-}
+}*/
 
 float evalHashGrid2D(DitherInfo d, float g_HashScale, bool rotate = false)
 {
