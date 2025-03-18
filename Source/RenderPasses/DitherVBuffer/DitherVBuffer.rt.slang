@@ -49,8 +49,8 @@ struct RayData
 {
 #ifndef FULL_STOCHASTIC
     float4 color;
-#endif
     float rayT; // input: TMax, output: TCurrent
+#endif
     float minAlphaT; // RayT value of closest alpha-blended hit
 };
 
@@ -190,6 +190,8 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
 
     rayData.minAlphaT = min(rayData.minAlphaT, RayTCurrent()); // store if alpha was encountered
 
+    #ifndef FULL_BASELINE
+
     if(!useRussianRouletteForAlphaTest(rayData)) return; // accept this as hit
     // below: russian roulette for alpha test
 
@@ -249,6 +251,8 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     if (!winBlueNoise3D(d))
         IgnoreHit();
     #endif
+
+    #endif // FULL_BASELINE
 }
 
 float2 calcMotionVector(uint2 pixel, uint2 frameDim, TriangleHit triangleHit, bool isTransparent)
@@ -347,14 +351,14 @@ void rayGen()
     if (CULL_BACK_FACES) rayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 
     #ifndef FULL_STOCHASTIC
-    for(uint i = 0; i < 256; ++i)
-    #endif
+    for (uint i = 0; i < 256; ++i)
     {
         data.rayT = ray.tMax; // overwrite with max t
+    #endif
         TraceRay(gScene.rtAccel, rayFlags, kInstanceCameraParticle, 0, rayTypeCount, 0, ray.toRayDesc(), data);
+    #ifndef FULL_STOCHASTIC
         ray.tMin = data.rayT; // set ray t from hitpoint to new start
-        #ifndef FULL_STOCHASTIC
         if(data.color.w <= MIN_VISIBILITY || ray.tMin >= ray.tMax) break;
-        #endif
     }
+    #endif
 }
