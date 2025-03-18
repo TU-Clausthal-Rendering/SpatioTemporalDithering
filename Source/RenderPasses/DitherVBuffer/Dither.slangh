@@ -332,7 +332,7 @@ float getTopNoise(DitherInfo d)
     }
 }
 
-bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x4 cameraProjection, uint frameCount)
+bool winFractalDither(DitherInfo d, float2 dx, float2 dy, float4x4 cameraProjection)
 {
     float g_Scale = gGridScale;
     float g_SizeVariability = 1.0;
@@ -354,9 +354,10 @@ bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x
     // opacity at different input opacity values.
     float xRamp, yRamp;
     gDitherRampTex.GetDimensions(xRamp, yRamp);
-    if(g_InvertPattern) opacity = 1.0 - opacity;
-    float lookup = lerp(0.5, xRamp - 0.5, opacity) / xRamp; // adjust opacity lookup position
-    opacity = gDitherRampTex.SampleLevel(gDitherSampler, float2(lookup, 0.5), 0.0);
+    if (g_InvertPattern)
+        d.alpha = 1.0 - d.alpha;
+    float lookup = lerp(0.5, xRamp - 0.5, d.alpha) / xRamp; // adjust opacity lookup position
+    d.alpha = gDitherRampTex.SampleLevel(gDitherSampler, float2(lookup, 0.5), 0.0);
 
     #define RADIAL_COMPENSATION 0
     #if RADIAL_COMPENSATION != 0
@@ -444,7 +445,7 @@ bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x
     // the spectrum, rather than the largest-sized dots.
     // The "+ 0.001" is there to avoid dividing by zero.
     float brightnessSpacingMultiplier =
-        pow(opacity * 2 + 0.001, -(1 - g_SizeVariability));
+        pow(d.alpha * 2 + 0.001, -(1 - g_SizeVariability));
     spacing *= brightnessSpacingMultiplier;
 
     // Find the power-of-two level that corresponds to the dot spacing.
@@ -453,7 +454,7 @@ bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x
     float f = spacingLog - patternScaleLevel; // Fractional part.
 
     // Get the UV coordinates in the current fractal level.
-    float2 uv = coord / exp2(patternScaleLevel);
+    float2 uv = d.posUV / exp2(patternScaleLevel);
 
     // Get the third coordinate for the 3D texture lookup.
     // Each layer along the 3rd dimension in the 3D texture has one more dot.
@@ -469,12 +470,10 @@ bool winFractalDither(float opacity, float2 coord, float2 dx, float2 dy, float4x
     //float pattern = 1.0 - gDitherTex.SampleLevel(gDitherSampler, float3(uv, 1.0-subLayer), 0.0).r;
     float pattern = gDitherTex.SampleLevel(gDitherSampler, float3(uv, 1.0-subLayer), 0.0).r;
 
-    //float extraRng = hash3D(float3(coord, frameCount));
-    //pattern += (extraRng - 0.5);
-    //pattern = frac(pattern);
-
-    if(g_InvertPattern) return pattern > opacity;
-    else return pattern < opacity;
+    if (g_InvertPattern)
+        return pattern > d.alpha;
+    else
+        return pattern < d.alpha;
 }
 
 bool winHashGrid2D(DitherInfo d)

@@ -279,7 +279,7 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_FRACTAL_DITHERING
-    if (!winFractalDither(d))
+    if (!winFractalDither(d, ddx * texAspect, ddy * texAspect, gScene.camera.data.projMat))
         IgnoreHit();
     #endif
     #if DITHER_MODE == DITHER_MODE_BLUE_NOISE3D
