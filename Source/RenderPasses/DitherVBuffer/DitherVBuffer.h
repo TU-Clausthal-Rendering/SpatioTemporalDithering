@@ -69,21 +69,6 @@ public:
         
     });
 
-    enum class TemporalDitherMode
-    {
-        Disabled,
-        Uniform,
-        VanDerCorput, // equidistributed sequence (but we use a cyclic subset)
-        CyclicAlpha // potentially cyclic, but equidistributed if alpha is irrational
-    };
-
-    FALCOR_ENUM_INFO(TemporalDitherMode, {
-        { TemporalDitherMode::Disabled, "Disabled" },
-        { TemporalDitherMode::Uniform, "Uniform" },
-        { TemporalDitherMode::VanDerCorput, "VanDerCorput" },
-        { TemporalDitherMode::CyclicAlpha, "CyclicAlpha" },
-    });
-
     enum class DitherPattern : uint32_t
     {
         Dither2x2,
@@ -199,8 +184,6 @@ private:
     ref<CPUSampleGenerator> mpSamplePattern;
 
     DitherMode mDitherMode = DitherMode::PerPixel3x3;
-    TemporalDitherMode mTemporalDitherMode = TemporalDitherMode::Disabled;
-    uint mTemporalDitherLength = 8; // cycle of the sequence
     bool mUseAlphaTextureLOD = false; // use lod for alpha lookups
     bool mUseTransparencyWhitelist = false;
     std::set<std::string> mTransparencyWhitelist;
@@ -233,4 +216,3 @@ FALCOR_ENUM_REGISTER(DitherVBuffer::DitherPattern);
 FALCOR_ENUM_REGISTER(DitherVBuffer::NoisePattern);
 FALCOR_ENUM_REGISTER(DitherVBuffer::ObjectHashType);
 FALCOR_ENUM_REGISTER(DitherVBuffer::NoiseTopPattern);
-FALCOR_ENUM_REGISTER(DitherVBuffer::TemporalDitherMode);

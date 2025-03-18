@@ -59,8 +59,6 @@ cbuffer DitherConstants
     float gGridScale;
     int gRotatePattern;
     uint gObjectHashType;
-    uint gTemporalDitherMode;
-    uint gTemporalDitherLength; // length of the sequence
     uint gNoiseTop;
     uint gDitherTAAPermutations; // enables permutations for dither taa
 };
@@ -565,39 +563,6 @@ uint2 applyRotation(uint2 pixel, uint offset, uint width, uint height)
     return pixel;
 }
 
-// returns max magnitude for the random noise
-float applyTemporalDither(inout float threshold, uint frameIndex, float alpha, uint matrixWidthTimesHeight)
-{
-    int vcp8[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
-    float rotationWeight = 1.0;
-    if(gRotatePattern) rotationWeight = 1.0 / float(matrixWidthTimesHeight);
-
-    switch (gTemporalDitherMode)
-    {
-        case TEMPORAL_DITHER_UNIFORM:
-            threshold += (frameIndex % gTemporalDitherLength) / float(gTemporalDitherLength) * rotationWeight;
-            return 1.0 / gTemporalDitherLength * rotationWeight;
-        case TEMPORAL_DITHER_VANDERCORPUT:
-            // TODO
-            //threshold = frac(threshold + VanDerCorput(frameIndex, gTemporalDitherLength));
-            threshold += vcp8[frameIndex % 8u] / 8.0 * rotationWeight;
-            return 1.0 / 8.0 * rotationWeight;
-        case TEMPORAL_DITHER_CYCLICALPHA:{
-            //threshold += frameIndex * alpha;
-            //threshold += (frameIndex % 65536u) * alpha; // 16 bit precision for frame index (should be enough to prevent floating point issues?)
-            //return alpha;
-            threshold += frac((frameIndex % 65536u) * alpha) * rotationWeight; // 16 bit precision for frame index (should be enough to prevent floating point issues?)
-            return alpha * rotationWeight;
-            //uint q = 256;
-            //float qalpha = (floor(alpha * q) / q);
-            //threshold += (frameIndex % q) * qalpha;
-            //return qalpha;
-            }
-        default: // disabled
-            return 1.0 / matrixWidthTimesHeight;
-    }
-}
-
 float getBlueNoise3DThreshold(DitherInfo d)
 {
     uint randomOffset = uint(getObjectHash() * 16*16*16);
@@ -626,13 +591,8 @@ float getPixelDitherThreshold2x2(DitherInfo d)
         p = applyRotation(p, d.frameIndex, 2, 2); // rotate lookup based on frame index
     uint lookup = (p.x % 2u) + 2u * (p.y % 2u);
     uint v = mask[lookup]; // 0, 1, 2 or 3
-    
-    float ditherThreshold = v / 4.0;
-    float maxRng = applyTemporalDither(ditherThreshold, d.frameIndex, d.alpha, 4);
-    
-    ditherThreshold += maxRng * getTopNoise(d);
-    
-    return frac(ditherThreshold);
+
+    return (v + getTopNoise(d)) / 4.0;
 }
 
 float getPixelDitherThreshold3x3(DitherInfo d)
@@ -647,42 +607,11 @@ float getPixelDitherThreshold3x3(DitherInfo d)
 
     uint3x3 mask = get3x3Permutation(randomOffset);
     uint v = mask[p.y][p.x]; // 0-8
-    
-    float ditherThreshold = v / 9.0;
-    float maxRng = applyTemporalDither(ditherThreshold, d.frameIndex, d.alpha, 9);
-    
-    ditherThreshold += maxRng * getTopNoise(d);
-    
-    return frac(ditherThreshold);
+
+    return (v + getTopNoise(d)) / 9.0;
 }
 
-float getPixelDitherThreshold4x4(DitherInfo d)
-{
-    uint randomOffset = uint(getObjectHash() * 7919);
 
-    uint2 p = d.pixel;
-    if (gRotatePattern)
-        p = applyRotation(p, d.frameIndex, 4, 4);
-    
-    //if(gRotatePattern) pixel += DecodeMorton2D(frameIndex);
-    // TODO replace lookup with precomputed matrices
-    p.x += randomOffset % 4u;
-    p.y += randomOffset / 4u;
-    p = p % 4u;
-    float4x4 ditherMatrix = float4x4(
-        float4(0.0, 8.0, 2.0, 10.0),
-        float4(12.0, 4.0, 14.0, 6.0),
-        float4(3.0, 11.0, 1.0, 9.0),
-        float4(15.0, 7.0, 13.0, 5.0)
-    );
-    
-    float ditherThreshold = ditherMatrix[p.y][p.x] / 16.0;
-    float maxRng = applyTemporalDither(ditherThreshold, d.frameIndex, d.alpha, 16);
-    
-    ditherThreshold += maxRng * getTopNoise(d);
-
-    return frac(ditherThreshold);
-}
 
 float getPixelDitherThreshold2x2x2(DitherInfo d)
 {
@@ -691,8 +620,6 @@ float getPixelDitherThreshold2x2x2(DitherInfo d)
     
     return ditherThreshold;
 }
-
-
 
 bool winBlueNoise3D(DitherInfo d)
 {
@@ -859,4 +786,29 @@ float ditherTemporalAAThreshold(DitherInfo d)
     
     t = clamp(t, 1e-6, 1.0);
     return t;
+}
+
+
+// WARNING: NOT UP TO DATE (Missing good matrix permutations)
+float getPixelDitherThreshold4x4(DitherInfo d)
+{
+    uint randomOffset = uint(getObjectHash() * 7919);
+
+    uint2 p = d.pixel;
+    if (gRotatePattern)
+        p = applyRotation(p, d.frameIndex, 4, 4);
+    
+    //if(gRotatePattern) pixel += DecodeMorton2D(frameIndex);
+    // TODO replace lookup with precomputed matrices
+    p.x += randomOffset % 4u;
+    p.y += randomOffset / 4u;
+    p = p % 4u;
+    float4x4 ditherMatrix = float4x4(
+        float4(0.0, 8.0, 2.0, 10.0),
+        float4(12.0, 4.0, 14.0, 6.0),
+        float4(3.0, 11.0, 1.0, 9.0),
+        float4(15.0, 7.0, 13.0, 5.0)
+    );
+
+    return (ditherMatrix[p.y][p.x] + getTopNoise(d)) / 16.0;
 }

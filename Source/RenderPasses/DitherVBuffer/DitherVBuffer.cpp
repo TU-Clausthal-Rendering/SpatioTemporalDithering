@@ -158,8 +158,6 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     var["DitherConstants"]["gNoiseScale"] = float2(1.0f / mpNoiseTex->getWidth(), 1.0f / mpNoiseTex->getHeight());
     var["DitherConstants"]["gRotatePattern"] = mRotatePattern ? 1 : 0;
     var["DitherConstants"]["gObjectHashType"] = uint(mObjectHashType);
-    var["DitherConstants"]["gTemporalDitherMode"] = uint(mTemporalDitherMode);
-    var["DitherConstants"]["gTemporalDitherLength"] = mTemporalDitherLength;
     var["DitherConstants"]["gNoiseTop"] = uint(mNoiseTopPattern);
     var["DitherConstants"]["gDitherTAAPermutations"] = mDitherTAAPermutations ? 1 : 0;
 
@@ -216,11 +214,6 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
     {
         widget.checkbox("Rotate Pattern", mRotatePattern);
         widget.tooltip("Rotates the per-pixel dither pattern based on the frame index");
-        /*widget.dropdown("Temporal Dither", mTemporalDitherMode);
-        if (mTemporalDitherMode != TemporalDitherMode::Disabled)
-        {
-            widget.var("Temporal Dither Length", mTemporalDitherLength, 1u, 16u);
-        }*/
     }
 
     if (mDitherMode == DitherMode::FractalDithering || mDitherMode == DitherMode::HashGrid || useTopNoiseGrid)
