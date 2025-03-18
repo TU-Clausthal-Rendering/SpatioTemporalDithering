@@ -26,8 +26,6 @@
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
 #include "DitherVBuffer.h"
-#include "DitherLookup.h"
-#include "MidpointGenerator.h"
 #include "PermutationLookup.h"
 #include "Scene/Lighting/LightSettings.h"
 #include "Scene/Lighting/ShadowSettings.h"
@@ -56,7 +54,6 @@ DitherVBuffer::DitherVBuffer(ref<Device> pDevice, const Properties& props)
 {
     mpSampleGenerator = SampleGenerator::create(mpDevice, SAMPLE_GENERATOR_UNIFORM);
     mpSamplePattern = HaltonSamplePattern::create(16);
-    createStratifiedBuffers();
     createNoisePattern();
     setFractalDitherPattern(mFractalDitherPattern);
     Sampler::Desc sd;
@@ -138,8 +135,6 @@ void DitherVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     var["gMotion"] = pMotion;
     var["gOpacity"] = pOpacity;
     var["gColor"] = pColor;
-    var["gStratifiedIndices"] = mpStratifiedIndices;
-    var["gStratifiedLookUpTable"] = mpStratifiedLookUpBuffer;
     var["gDitherTex"] = mpFracDitherTex;
     var["gDitherRampTex"] = mpFracDitherRampTex;
     var["gDitherSampler"] = mpFracSampler;
@@ -346,19 +341,6 @@ void DitherVBuffer::setupProgram()
     // Bind static resources.
     ShaderVar var = mpVars->getRootVar();
     mpSampleGenerator->setShaderData(var);
-}
-
-void DitherVBuffer::createStratifiedBuffers()
-{
-    std::vector<int> indices;
-    std::vector<uint32_t> lookUpTable;
-    auto n = 16;
-    if(mpSamplePattern->getSampleCount() != 0)
-        n = mpSamplePattern->getSampleCount();
-    generateStratifiedLookupTable(n, indices, lookUpTable);
-
-    mpStratifiedIndices = Buffer::createStructured(mpDevice, sizeof(indices[0]), uint32_t(indices.size()), ResourceBindFlags::ShaderResource, Buffer::CpuAccess::None, indices.data(), false);
-    mpStratifiedLookUpBuffer = Buffer::createStructured(mpDevice, sizeof(lookUpTable[0]), uint32_t(lookUpTable.size()), ResourceBindFlags::ShaderResource, Buffer::CpuAccess::None, lookUpTable.data(), false);
 }
 
 bool DitherVBuffer::updateWhitelistBuffer()

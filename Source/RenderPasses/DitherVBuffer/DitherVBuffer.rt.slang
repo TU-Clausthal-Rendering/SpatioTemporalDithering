@@ -266,10 +266,6 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     if (alpha < ditherTemporalAAThreshold(d))
         IgnoreHit();
     #endif
-    #if DITHER_MODE == DITHER_MODE_PER_JITTER
-    if(!isCovered(d, gSampleCount))
-        IgnoreHit();
-    #endif
     #if DITHER_MODE == DITHER_MODE_RUSSIAN_ROULETTE
     if(!winRoulette(d))
         IgnoreHit();

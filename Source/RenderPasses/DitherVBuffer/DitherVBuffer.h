@@ -29,7 +29,6 @@
 #include "Falcor.h"
 #include "RenderGraph/RenderPass.h"
 #include "Utils/SampleGenerators/HaltonSamplePattern.h"
-#include "SobolGenerator.h"
 #include "Utils/SampleGenerators/StratifiedSamplePattern.h"
 
 using namespace Falcor;
@@ -60,7 +59,7 @@ public:
         { DitherMode::PerPixel4x4, "PerPixel4x4" },
         { DitherMode::PerPixel2x2x2, "PerPixel2x2x2" },
         { DitherMode::DitherTemporalAA, "DitherTemporalAA" },
-        { DitherMode::PerJitter, "PerJitter" },
+        //{ DitherMode::PerJitter, "PerJitter" }, // deprecated
         { DitherMode::RussianRoulette, "RussianRoulette" },
         { DitherMode::Periodic, "Periodic" },
         { DitherMode::HashGrid, "HashGrid" },
@@ -182,7 +181,6 @@ private:
     void setFractalDitherPattern(DitherPattern pattern);
 
     void setupProgram();
-    void createStratifiedBuffers();
     // returns true if at least one material was whitelisted (or scene was invalid)
     bool updateWhitelistBuffer();
     void createNoisePattern();
@@ -192,8 +190,6 @@ private:
     ref<RtProgram> mpProgram;
     ref<RtProgramVars> mpVars;
     ref<SampleGenerator> mpSampleGenerator;
-    ref<Buffer> mpStratifiedIndices;
-    ref<Buffer> mpStratifiedLookUpBuffer;
     ref<Buffer> mpTransparencyWhitelist;
     ref<Buffer> mpPermutations3x3Buffer;
 

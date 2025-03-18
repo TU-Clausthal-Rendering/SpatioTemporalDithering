@@ -2,7 +2,6 @@
 #define DITHER_MODE_PER_PIXEL_2X2 0
 #define DITHER_MODE_PER_PIXEL_3X3 1
 #define DITHER_MODE_PER_PIXEL_4X4 2
-#define DITHER_MODE_PER_JITTER 3
 #define DITHER_MODE_RUSSIAN_ROULETTE 4
 #define DITHER_MODE_PERIODIC 5
 #define DITHER_MODE_HASH_GRID 6
@@ -41,9 +40,6 @@
 #ifndef COVERAGE_CORRECTION
 #define COVERAGE_CORRECTION COVERAGE_CORRECTION_DISABLED
 #endif
-
-StructuredBuffer<uint> gStratifiedIndices;
-StructuredBuffer<uint> gStratifiedLookUpTable;
 
 Texture3D<float> gDitherTex;
 Texture2D<float> gDitherRampTex; // converts opacity to threshold for the dither tex
@@ -539,43 +535,6 @@ uint ZOrderCurveIndex(uint2 coord)
 
     // Combine the interleaved bits of x and y
     return x | (y << 1);
-}
-
-bool isCovered(DitherInfo d, uint sampleCount)
-{
-
-
-    // offset sample index
-    //sampleIndex += (pixel.y % 4u) + 4u * (pixel.x % 4u);
-    d.frameIndex += ditherMatrix[d.pixel.x % 4u][d.pixel.y % 4u];
-    //sampleIndex += uint(hash(float2(pixel)) * 256);
-    //sampleIndex += uint(hash(float2(pixel.x % 4u, pixel.y % 4u)) * sampleCount);
-    //sampleIndex += ZOrderCurveIndex(pixel);
-    d.frameIndex = d.frameIndex % sampleCount;
-
-    float hashPixel = hash(float2(d.pixel));
-    float rng = 0.5; // TODO should be a varying value
-    //float rng = hash(float2(hashPixel, float(frameIndex/sampleCount)));
-    //rng = hash1D(float(frameIndex) / float(sampleCount));
-    int R = int(floor(d.alpha * sampleCount + rng));
-    if(R >= sampleCount) return true;
-    //float rng2 = hash(float2(pixel));
-    //float rng2 = hash4D(float4(hashPixel, InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u));
-    //float rng2 = hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u));
-    float rng2 = hash3D(float3(InstanceID(), GeometryIndex(), 0));
-    //float rng2 = hash4D(float4(hash3D(posW), InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u));
-    //float rng2 = 0.5;
-    int index = int(lerp(gStratifiedIndices[R], gStratifiedIndices[R + 1], rng2));
-    uint mask = gStratifiedLookUpTable[index];
-    // mask for 0.4 => 6 bits set
-    //mask = 0x2929; // 6 bits set, as regular as possible => very constant
-    //mask = 0x1515; // 6 bits, only on even numbers => very constant
-    //mask = 0xC63; // 6 bits in pairs of two => slight flicker
-    //mask = 0x3F; // first 6 bits only => very visible flicker
-    //mask = UPS; // 6 bits set, same corner in halton sequence => visible flicker
-
-    if(mask & (1u << d.frameIndex)) return true;
-    return false;
 }
 
 // Helper function to extract bits at even positions for x or odd positions for y

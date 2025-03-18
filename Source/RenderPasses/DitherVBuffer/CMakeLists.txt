@@ -5,9 +5,6 @@ target_sources(DitherVBuffer PRIVATE
     DitherVBuffer.h
     DitherVBuffer.rt.slang
     Dither.slangh
-    DitherLookup.h
-    SobolGenerator.h
-    MidpointGenerator.h
     PermutationLookup.h
 )
 
