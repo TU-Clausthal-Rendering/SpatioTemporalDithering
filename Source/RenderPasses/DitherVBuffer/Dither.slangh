@@ -40,6 +40,10 @@
 #define COVERAGE_CORRECTION COVERAGE_CORRECTION_DISABLED
 #endif
 
+#ifndef ENABLE_HASH_GRIDS
+#define ENABLE_HASH_GRIDS 0
+#endif
+
 Texture3D<float> gDitherTex;
 Texture2D<float> gDitherRampTex; // converts opacity to threshold for the dither tex
 SamplerState gDitherSampler;
@@ -69,8 +73,10 @@ struct DitherInfo
     uint frameIndex; // usually for per frame rng
     float3 posW; // world position (for white noise)
     float alpha; // object alpha
+#if ENABLE_HASH_GRIDS != 0
     float2 posUV; // uv coordinate
     float maxDerivUV; // max derivative in uv
+#endif
 };
 
 static const int4x4 ditherMatrix = int4x4(
@@ -499,6 +505,7 @@ float noise(float2 uv)
 
 bool winFractalDither(DitherInfo d, float2 dx, float2 dy, float4x4 cameraProjection)
 {
+    #if ENABLE_HASH_GRIDS != 0
     float g_Scale = gGridScale;
     float g_SizeVariability = 1.0;
     bool g_InvertPattern = true; // false: holes are round, true: occluders are round
@@ -639,6 +646,9 @@ bool winFractalDither(DitherInfo d, float2 dx, float2 dy, float4x4 cameraProject
         return pattern > d.alpha;
     else
         return pattern < d.alpha;
+    #else
+    return true;
+    #endif
 }
 
 // from Hashed Alpha Testing
@@ -679,6 +689,7 @@ bool winFractalDither(DitherInfo d, float2 dx, float2 dy, float4x4 cameraProject
 
 float evalHashGrid2D(DitherInfo d, float g_HashScale, bool rotate = false)
 {
+    #if ENABLE_HASH_GRIDS != 0
     float pixScale = 1.0 / (g_HashScale * d.maxDerivUV);
     
     // Find two nearest log-discretized noise scales
@@ -727,4 +738,7 @@ float evalHashGrid2D(DitherInfo d, float g_HashScale, bool rotate = false)
 
     threshold = clamp(threshold, 1e-6, 1.0);
     return threshold;
+    #else
+    return 0.5;
+    #endif
 }

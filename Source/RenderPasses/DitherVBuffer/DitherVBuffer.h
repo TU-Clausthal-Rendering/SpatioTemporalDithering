@@ -33,6 +33,10 @@
 
 using namespace Falcor;
 
+// use this define to enable the use of hash grids for surface attached noise and techniques
+// the use of hash grids requires calculation of ray differentials in the any-hit, which are a measurable performance hit
+//#define ENABLE_HASH_GRIDS
+
 class DitherVBuffer : public RenderPass
 {
 public:
@@ -52,6 +56,7 @@ public:
         Disabled = 0xff,
     };
 
+#ifdef ENABLE_HASH_GRIDS
     FALCOR_ENUM_INFO(DitherMode, {
         { DitherMode::Disabled, "Disabled" },
         { DitherMode::PerPixel3x3, "STD 3x3" },
@@ -61,13 +66,29 @@ public:
         //{ DitherMode::PerJitter, "PerJitter" }, // deprecated
         { DitherMode::RussianRoulette, "RussianRoulette" },
         { DitherMode::HashGrid, "HashGrid" },
+        { DitherMode::FractalDithering, "FractalDithering" },
         { DitherMode::PerPixel2x2, "STD 2x2" },
         // the implementation of those work, but they have bad results:
         { DitherMode::Periodic, "Periodic" },
-        { DitherMode::FractalDithering, "FractalDithering" },
         { DitherMode::BlueNoise3D, "BlueNoise3D" },
         
     });
+#else
+    FALCOR_ENUM_INFO(DitherMode, {
+    { DitherMode::Disabled, "Disabled" },
+    { DitherMode::PerPixel3x3, "STD 3x3" },
+    // { DitherMode::PerPixel4x4, "PerPixel4x4" }, deprecated: not up to date
+    // { DitherMode::PerPixel2x2x2, "PerPixel2x2x2" }, // deprecated: too much flicker
+    { DitherMode::DitherTemporalAA, "DitherTemporalAA" },
+    //{ DitherMode::PerJitter, "PerJitter" }, // deprecated
+    { DitherMode::RussianRoulette, "RussianRoulette" },
+    { DitherMode::PerPixel2x2, "STD 2x2" },
+    // the implementation of those work, but they have bad results:
+    { DitherMode::Periodic, "Periodic" },
+    { DitherMode::BlueNoise3D, "BlueNoise3D" },
+});
+#endif
+
 
     enum class DitherPattern : uint32_t
     {
@@ -126,16 +147,28 @@ public:
         SurfaceWhite,
     };
 
+#ifdef ENABLE_HASH_GRIDS
     FALCOR_ENUM_INFO(NoiseTopPattern, {
         {NoiseTopPattern::Disabled, "Disabled"},
         {NoiseTopPattern::StaticWhite, "StaticWhite"},
         {NoiseTopPattern::DynamicWhite, "DynamicWhite"},
-        {NoiseTopPattern::SurfaceWhite, "SurfaceWhite"},
         {NoiseTopPattern::StaticBlue, "StaticBlue"},
         {NoiseTopPattern::DynamicBlue, "DynamicBlue"},
         {NoiseTopPattern::StaticBayer, "StaticBayer"},
+        {NoiseTopPattern::SurfaceWhite, "Surface"},
         //{NoiseTopPattern::DynamicBayer, "DynamicBayer"},
     });
+#else
+    FALCOR_ENUM_INFO(NoiseTopPattern, {
+    {NoiseTopPattern::Disabled, "Disabled"},
+    {NoiseTopPattern::StaticWhite, "StaticWhite"},
+    {NoiseTopPattern::DynamicWhite, "DynamicWhite"},
+    {NoiseTopPattern::StaticBlue, "StaticBlue"},
+    {NoiseTopPattern::DynamicBlue, "DynamicBlue"},
+    {NoiseTopPattern::StaticBayer, "StaticBayer"},
+    //{NoiseTopPattern::DynamicBayer, "DynamicBayer"},
+        });
+#endif
 
     enum class ObjectHashType : uint32_t
     {

@@ -146,8 +146,11 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     triangleHit.instanceID = getGeometryInstanceID();
     triangleHit.primitiveIndex = PrimitiveIndex();
     triangleHit.barycentrics = attribs.barycentrics;
-    float2 ddx, ddy; // texture differentials
+
+    #if (ALPHA_TEXTURE_LOD != 0) || (ENABLE_HASH_GRIDS != 0)
+    float2 ddx, ddy; // texture differentials: for hash grid coordinates or texture LOD
     computeRayDifferentials(triangleHit, WorldRayDirection(), RayTCurrent(), gScene.camera, float2(frameDim), ddx, ddy);
+    #endif
 
     #if ALPHA_TEXTURE_LOD != 0
     let lod = ExplicitGradientTextureSampler(ddx, ddy);
@@ -180,16 +183,17 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     alpha = lerp(alpha, dlssAlpha, gDLSSCorrectionStrength);
     #endif
 
-    uint2 texDim = material.getDimensions(gScene.materials);
-    float2 texAspect = float2(1.0, float(texDim.y) / float(texDim.x));
-
-    DitherInfo d;
+    DitherInfo d = {};
     d.pixel = pixel;
     d.frameIndex = gFrameCount;
     d.posW = v.posW;
     d.alpha = alpha;
+    #if (ENABLE_HASH_GRIDS != 0)
+    uint2 texDim = material.getDimensions(gScene.materials);
+    float2 texAspect = float2(1.0, float(texDim.y) / float(texDim.x));
     d.posUV = v.texC * texAspect;
     d.maxDerivUV = max(length(ddx * texAspect), length(ddy * texAspect));
+    #endif
 
     #if DITHER_MODE == DITHER_MODE_DISABLED
 

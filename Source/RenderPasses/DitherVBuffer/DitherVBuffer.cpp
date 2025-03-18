@@ -314,6 +314,9 @@ void DitherVBuffer::setupProgram()
     DefineList defines;
     defines.add(mpScene->getSceneDefines());
     defines.add(mpSampleGenerator->getDefines());
+#ifdef ENABLE_HASH_GRIDS
+    defines.add("ENABLE_HASH_GRIDS", "1");
+#endif
 
     RtProgram::Desc desc;
     desc.addShaderModules(mpScene->getShaderModules());
