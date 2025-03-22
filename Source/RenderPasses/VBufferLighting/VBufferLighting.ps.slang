@@ -1,16 +1,25 @@
 #include "Scene/Lighting/Lighting.slangh"
+#include "Scene/Lighting/RayShadow.slangh"
 
 Texture2DArray<float> visibilityBuffer;
 Texture2D<PackedHitInfo> vbuffer;
 Texture2D<float4> rayDir;
 
+#ifndef USE_RAY_SHADOW
+#define USE_RAY_SHADOW 0
+#endif
+
 float computeShadowImpl(uint2 pixel, uint lightIndex, float3 posW, float3 normalW)
 {
+    #if USE_RAY_SHADOW != 0
+    return traceShadowRay(posW, normalW, lightIndex);
+    #else
     uint visWidth, visHeight, visSlices;
     visibilityBuffer.GetDimensions(visWidth, visHeight, visSlices);
 
     if (lightIndex >= visSlices) return 1.0; // no shadow available
     return visibilityBuffer[uint3(pixel, lightIndex)];
+    #endif
 }
 
 float4 main(float2 texC : TEXCOORD, float4 svPos : SV_POSITION) : SV_TARGET

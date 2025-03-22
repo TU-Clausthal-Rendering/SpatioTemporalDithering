@@ -54,4 +54,5 @@ private:
     ref<FullScreenPass> mpPass;
     ref<Fbo> mpFbo;
     ref<Scene> mpScene;
+    bool mUseRayShadow = false;
 };

@@ -118,7 +118,7 @@ void DitherVBufferRaster::execute(RenderContext* pRenderContext, const RenderDat
 
     if (!mpScene)
     {
-        pRenderContext->clearTexture(pVbuffer.get(), float4(0, 0, 0, 0));
+        pRenderContext->clearUAV(pVbuffer->getUAV().get(), uint4(0));
         return;
     }
 
