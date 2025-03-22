@@ -18,6 +18,9 @@ float getObjectHash()
 {
     if(gObjectHashType == OBJECT_HASH_QUADS) return hash3D(float3(InstanceID(), GeometryIndex(), PrimitiveIndex() / 2u));
     return hash3D(float3(InstanceID(), GeometryIndex(), HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE));
+    // raster ver:
+    //if(gObjectHashType == OBJECT_HASH_QUADS) return hash(float2(InstanceID() + GeometryIndex(), PrimitiveIndex() / 2u));
+    //return hash(float2(InstanceID() + GeometryIndex(), HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE));
 }
 
 #ifndef ALPHA_TEXTURE_LOD

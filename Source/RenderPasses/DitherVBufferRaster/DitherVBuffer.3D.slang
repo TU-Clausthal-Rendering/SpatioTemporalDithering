@@ -64,29 +64,7 @@ VSOut vsMain(VSIn vIn)
 struct PsOut
 {
     PackedHitInfo vbuffer : SV_Target0;
-    float2 mvec : SV_Target1;
 };
-
-float2 calcMotionVector(uint2 pixel, uint2 frameDim, TriangleHit triangleHit)
-{
-    float3 prevPosW = gScene.getPrevPosW(triangleHit);
-
-    float2 pixelPos = float2(pixel) + 0.5;
-    float4 prevPosH = mul(gScene.camera.data.prevViewProjMatNoJitter, float4(prevPosW, 1.0));
-
-    float2 prevCrd = prevPosH.xy / prevPosH.w;
-#ifdef FALCOR_FLIP_Y
-    prevCrd *= float2(0.5, 0.5);
-#else
-    prevCrd *= float2(0.5, -0.5);
-#endif
-    prevCrd += 0.5f;
-    float2 normalizedCrd = pixelPos / frameDim;
-    float2 mvec = prevCrd - normalizedCrd;
-    mvec += float2(gScene.camera.data.jitterX, -gScene.camera.data.jitterY); // Remove camera jitter from motion vector
-
-    return mvec;
-}
 
 PsOut psMain(VSOut v, uint triangleIndex : SV_PrimitiveID, float3 barycentrics : SV_Barycentrics, bool isFrontFace : SV_IsFrontFace)
 {
@@ -96,7 +74,6 @@ PsOut psMain(VSOut v, uint triangleIndex : SV_PrimitiveID, float3 barycentrics :
     triangleHit.primitiveIndex = triangleIndex;
     triangleHit.barycentrics = barycentrics.yz;
     o.vbuffer = triangleHit.pack();
-    o.mvec = calcMotionVector(int2(v.posH.xy), gFrameDim, triangleHit);
 
     uint materialID = v.materialID;
 
@@ -114,7 +91,7 @@ PsOut psMain(VSOut v, uint triangleIndex : SV_PrimitiveID, float3 barycentrics :
     }
 
     let material = gScene.materials.getMaterial(materialID);
-    float alpha = material.evalOpacity(gScene.materials, v.texC, lod); // TODO v?
+    float alpha = material.evalOpacity(gScene.materials, v.texC, lod);
     if(alpha <= 0.01) discard; // no hit
     if(alpha >= 1.0) return o; // opaque
 

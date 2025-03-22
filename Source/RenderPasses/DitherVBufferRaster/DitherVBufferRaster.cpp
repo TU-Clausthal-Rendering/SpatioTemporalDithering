@@ -33,7 +33,6 @@
 namespace
 {
     const std::string kVbuffer = "vbuffer";
-    const std::string kMotion = "mvec";
     const std::string kDepth = "depth";
 
     const std::string kProgramFile = "RenderPasses/DitherVBufferRaster/DitherVBuffer.3D.slang";
@@ -105,7 +104,6 @@ RenderPassReflection DitherVBufferRaster::reflect(const CompileData& compileData
 {
     RenderPassReflection reflector;
     reflector.addOutput(kVbuffer, "V-buffer").format(HitInfo::kDefaultFormat);
-    reflector.addOutput(kMotion, "Motion vector").format(ResourceFormat::RG32Float);//.flags(RenderPassReflection::Field::Flags::Optional);
     reflector.addOutput(kDepth, "Depth Bufer").format(ResourceFormat::D32Float);
     return reflector;
 }
@@ -113,7 +111,6 @@ RenderPassReflection DitherVBufferRaster::reflect(const CompileData& compileData
 void DitherVBufferRaster::execute(RenderContext* pRenderContext, const RenderData& renderData)
 {
     auto pVbuffer = renderData.getTexture(kVbuffer);
-    auto pMotion = renderData.getTexture(kMotion);
     auto pDepth = renderData.getTexture(kDepth);
 
     if (!mpScene)
@@ -164,12 +161,10 @@ void DitherVBufferRaster::execute(RenderContext* pRenderContext, const RenderDat
     // clear buffers
     pRenderContext->clearDsv(pDepth->getDSV().get(), 1.0f, 0);
     pRenderContext->clearUAV(pVbuffer->getUAV().get(), uint4(0));
-    pRenderContext->clearTexture(pMotion.get()); // TODO motion vectors for background
 
     // framebuffer
     mpFbo->attachDepthStencilTarget(pDepth);
     mpFbo->attachColorTarget(pVbuffer, 0);
-    mpFbo->attachColorTarget(pMotion, 1);
     mpState->setFbo(mpFbo);
 
     auto cullMode = mCullBackFaces ? RasterizerState::CullMode::Back : RasterizerState::CullMode::None;

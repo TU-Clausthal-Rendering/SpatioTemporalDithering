@@ -17,14 +17,14 @@ def render_graph_DitherRaster():
     g.add_edge('ToneMapper', 'PathBenchmark')
     g.add_edge('ParticlePass', 'VideoRecorder')
     g.add_edge('FSR.output', 'OutputSwitch.i1')
-    g.add_edge('DitherVBufferRaster.mvec', 'FSR.mvec')
-    g.add_edge('DitherVBufferRaster.mvec', 'DLSSPass.mvec')
     g.add_edge('DitherVBufferRaster.vbuffer', 'VBufferLighting.vbuffer')
     g.add_edge('VBufferLighting.color', 'DLSSPass.color')
     g.add_edge('VBufferLighting.color', 'FSR.color')
     g.add_edge('DitherVBufferRaster.depth', 'FSR.depth')
     g.add_edge('DitherVBufferRaster.depth', 'DLSSPass.depth')
     g.add_edge('VideoRecorder', 'DitherVBufferRaster')
+    g.add_edge('VBufferLighting.mvec', 'FSR.mvec')
+    g.add_edge('VBufferLighting.mvec', 'DLSSPass.mvec')
     g.mark_output('ToneMapper.dst')
     return g
 
