@@ -75,6 +75,10 @@ PsOut psMain(VSOut v, uint triangleIndex : SV_PrimitiveID, float3 barycentrics :
     triangleHit.barycentrics = barycentrics.yz;
     o.vbuffer = triangleHit.pack();
 
+#ifdef OPAQUE_SHADER
+    return o;
+#endif
+
     uint materialID = v.materialID;
 
     #if ALPHA_TEXTURE_LOD != 0

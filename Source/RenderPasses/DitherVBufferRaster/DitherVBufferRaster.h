@@ -82,6 +82,7 @@ private:
 
     ref<GraphicsState> mpState;
     ref<GraphicsProgram> mpProgram;
+    ref<GraphicsProgram> mpOpaqueProgram;
     ref<GraphicsVars> mpVars;
     ref<Fbo> mpFbo;
 
@@ -96,7 +97,7 @@ private:
 
     NoisePattern mNoisePattern = NoisePattern::Blue;
     NoiseTopPattern mNoiseTopPattern = NoiseTopPattern::StaticBlue;
-    bool mCullBackFaces = false;
+    bool mCullBackFaces = true;
     bool mAlignMotionVectors = false; // align when using pixel grid techniques
     bool mRotatePattern = true; // rotate pattern when using pixel grid techniques
     bool mDitherTAAPermutations = true;

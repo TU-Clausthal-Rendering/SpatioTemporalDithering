@@ -168,7 +168,16 @@ void DitherVBufferRaster::execute(RenderContext* pRenderContext, const RenderDat
     mpState->setFbo(mpFbo);
 
     auto cullMode = mCullBackFaces ? RasterizerState::CullMode::Back : RasterizerState::CullMode::None;
-    mpScene->rasterize(pRenderContext, mpState.get(), mpVars.get(), cullMode, RasterizerState::MeshRenderMode::All);
+    {
+        FALCOR_PROFILE(pRenderContext, "Opaque");
+        mpState->setProgram(mpOpaqueProgram);
+        mpScene->rasterize(pRenderContext, mpState.get(), mpVars.get(), cullMode, RasterizerState::MeshRenderMode::SkipNonOpaque);
+    }
+    {
+        FALCOR_PROFILE(pRenderContext, "Transparent");
+        mpState->setProgram(mpProgram);
+        mpScene->rasterize(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None, RasterizerState::MeshRenderMode::SkipOpaque);
+    }
 }
 
 void DitherVBufferRaster::renderUI(Gui::Widgets& widget)
@@ -241,7 +250,8 @@ void DitherVBufferRaster::renderUI(Gui::Widgets& widget)
 
         widget.checkbox("Alpha Texture LOD", mUseAlphaTextureLOD);
 
-        widget.checkbox("Cull Back Faces", mCullBackFaces);
+        widget.checkbox("Cull Back Faces (Opaque)", mCullBackFaces);
+        widget.tooltip("Cull back faces for opaque objects. Culling is always disabled for transparent faces.");
 
         widget.checkbox("Transparency Whitelist", mUseTransparencyWhitelist);
         widget.tooltip("Uses only whitelisted materials for dithering, when enabled. If not whitelisted, the material will use an alpha test.");
@@ -304,6 +314,7 @@ void DitherVBufferRaster::setupProgram()
     desc.setShaderModel("6_5");
 
     mpProgram = GraphicsProgram::create(mpDevice, desc, mpScene->getSceneDefines());
+    mpOpaqueProgram = GraphicsProgram::create(mpDevice, desc, mpScene->getSceneDefines().add("OPAQUE_SHADER", "1"));
     mpState->setProgram(mpProgram);
     mpVars = GraphicsVars::create(mpDevice, mpProgram->getReflector());
 }
