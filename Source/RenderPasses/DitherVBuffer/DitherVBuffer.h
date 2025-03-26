@@ -106,12 +106,14 @@ public:
     enum class CoverageCorrection : uint32_t
     {
         Disabled,
-        DLSS
+        DLSS,
+        FSR
     };
 
     FALCOR_ENUM_INFO(CoverageCorrection, {
         { CoverageCorrection::Disabled, "Disabled" },
         { CoverageCorrection::DLSS, "DLSS" },
+        { CoverageCorrection::FSR, "FSR" },
     });
 
     enum class NoisePattern : uint32_t

@@ -251,9 +251,9 @@ void DitherVBuffer::renderUI(Gui::Widgets& widget)
     }
 
     widget.dropdown("Coverage Correction", mCoverageCorrection);
-    if (mCoverageCorrection == CoverageCorrection::DLSS)
+    if (mCoverageCorrection != CoverageCorrection::Disabled)
     {
-        widget.slider("DLSS Correction Strength", mDLSSCorrectionStrength, 0.0f, 4.0f);
+        widget.slider("Correction Strength", mDLSSCorrectionStrength, 0.0f, 4.0f);
     }
 
 

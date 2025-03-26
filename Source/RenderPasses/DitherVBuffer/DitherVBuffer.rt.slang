@@ -203,6 +203,7 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     let material = gScene.materials.getMaterial(materialID);
     float alpha = material.evalOpacity(gScene.materials, v, lod);
     if(alpha <= 0.01) IgnoreHit(); // no hit
+    if(alpha >= 1.0) return; // opaque
 
     rayData.minAlphaT = min(rayData.minAlphaT, RayTCurrent()); // store if alpha was encountered
 
@@ -212,8 +213,18 @@ void anyHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersectionAt
     // below: russian roulette for alpha test
 
     #if COVERAGE_CORRECTION == COVERAGE_CORRECTION_DLSS
+    // measured for RR, but works for STD as well
     float dlssAlpha = saturate(0.0113 + 1.6560 * alpha - 0.8210 * alpha * alpha + 0.1560 * alpha * alpha * alpha);
     alpha = lerp(alpha, dlssAlpha, gDLSSCorrectionStrength);
+    #endif
+    #if COVERAGE_CORRECTION == COVERAGE_CORRECTION_FSR
+    // measured for RR (but not good for STD)
+    // float fsrAlpha = saturate(0.0142 + 1.3693 * alpha - 0.1821 * alpha * alpha - 0.2135 * alpha * alpha * alpha);
+    float fsrAlpha = alpha;
+    // special measuement for STD
+    if (alpha > 0.320314) fsrAlpha = saturate(-1.0204 + 6.0689 * alpha - 6.7421 * alpha * alpha + 2.6931 * alpha * alpha * alpha);
+    else if (alpha < 0.202436) fsrAlpha = saturate(1.3113 * alpha + 0.6793 * alpha * alpha - 10.9520 * alpha * alpha * alpha);
+    alpha = lerp(alpha, fsrAlpha, gDLSSCorrectionStrength);
     #endif
 
     DitherInfo d = {};
