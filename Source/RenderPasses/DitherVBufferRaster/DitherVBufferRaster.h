@@ -101,4 +101,5 @@ private:
     bool mAlignMotionVectors = false; // align when using pixel grid techniques
     bool mRotatePattern = true; // rotate pattern when using pixel grid techniques
     bool mDitherTAAPermutations = true;
+    bool mFrustrumCulling = true;
 };

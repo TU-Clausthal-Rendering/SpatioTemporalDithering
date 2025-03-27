@@ -167,16 +167,19 @@ void DitherVBufferRaster::execute(RenderContext* pRenderContext, const RenderDat
     mpFbo->attachColorTarget(pVbuffer, 0);
     mpState->setFbo(mpFbo);
 
+    void (Scene::* rasterize)(RenderContext*, GraphicsState*, GraphicsVars*, RasterizerState::CullMode, RasterizerState::MeshRenderMode, bool) = &Scene::rasterize;
+    if(mFrustrumCulling) rasterize = &Scene::rasterizeFrustumCulling;
+
     auto cullMode = mCullBackFaces ? RasterizerState::CullMode::Back : RasterizerState::CullMode::None;
     {
         FALCOR_PROFILE(pRenderContext, "Opaque");
         mpState->setProgram(mpOpaqueProgram);
-        mpScene->rasterize(pRenderContext, mpState.get(), mpVars.get(), cullMode, RasterizerState::MeshRenderMode::SkipNonOpaque);
+        (mpScene.get()->*rasterize)(pRenderContext, mpState.get(), mpVars.get(), cullMode, RasterizerState::MeshRenderMode::SkipNonOpaque, true);
     }
     {
         FALCOR_PROFILE(pRenderContext, "Transparent");
         mpState->setProgram(mpProgram);
-        mpScene->rasterize(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None, RasterizerState::MeshRenderMode::SkipOpaque);
+        (mpScene.get()->*rasterize)(pRenderContext, mpState.get(), mpVars.get(), cullMode, RasterizerState::MeshRenderMode::SkipOpaque, true);
     }
 }
 
@@ -246,6 +249,8 @@ void DitherVBufferRaster::renderUI(Gui::Widgets& widget)
 
     if (auto g = widget.group("Scene"))
     {
+        widget.checkbox("Frustrum Culling", mFrustrumCulling);
+
         widget.dropdown("Object Hash", mObjectHashType);
 
         widget.checkbox("Alpha Texture LOD", mUseAlphaTextureLOD);

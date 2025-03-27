@@ -1036,6 +1036,24 @@ public:
 
     /** Render the scene using the rasterizer and FrustumCulling
       Note the rasterizer state bound to 'pState' is ignored.
+      Frustrum will be generated from the current selected camera
+      \param[in] pRenderContext Render context.
+      \param[in] pState Graphics state.
+      \param[in] pVars Graphics vars.
+      \param[in] cullMode Optional rasterizer cull mode. The default is to cull back-facing primitives.
+      \param[in] meshRenderMode Specifies which meshes should be rasterized
+    */
+    void rasterizeFrustumCulling(
+        RenderContext* pRenderContext,
+        GraphicsState* pState,
+        GraphicsVars* pVars,
+        RasterizerState::CullMode cullMode = RasterizerState::CullMode::Back,
+        RasterizerState::MeshRenderMode meshRenderMode = RasterizerState::MeshRenderMode::All,
+        bool drawShadowThrowable = true
+    );
+
+    /** Render the scene using the rasterizer and FrustumCulling
+      Note the rasterizer state bound to 'pState' is ignored.
       If FrustumCulling is nullptr, it is created using the camera
       \param[in] pRenderContext Render context.
       \param[in] pState Graphics state.
@@ -1048,10 +1066,10 @@ public:
         RenderContext* pRenderContext,
         GraphicsState* pState,
         GraphicsVars* pVars,
-        RasterizerState::CullMode cullMode = RasterizerState::CullMode::Back,
-        RasterizerState::MeshRenderMode meshRenderMode = RasterizerState::MeshRenderMode::All,
-        bool drawShadowThrowable = true,
-        ref<FrustumCulling> pFrustumCulling = nullptr
+        RasterizerState::CullMode cullMode,
+        RasterizerState::MeshRenderMode meshRenderMode,
+        bool drawShadowThrowable,
+        ref<FrustumCulling> pFrustumCulling
     );
 
     /** Render the scene using the rasterizer and frustumCulling

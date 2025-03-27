@@ -470,6 +470,19 @@ void Scene::rasterize(
     pState->setRasterizerState(pCurrentRS);
 }
 
+void Scene::rasterizeFrustumCulling(RenderContext* pRenderContext,
+    GraphicsState* pState,
+    GraphicsVars* pVars,
+    RasterizerState::CullMode cullMode,
+    RasterizerState::MeshRenderMode meshRenderMode,
+    bool drawShadowThrowable)
+{
+    rasterizeFrustumCulling(
+        pRenderContext, pState, pVars, mFrontClockwiseRS[cullMode], mFrontCounterClockwiseRS[cullMode],
+        mFrontCounterClockwiseRS[RasterizerState::CullMode::None], meshRenderMode, drawShadowThrowable, nullptr
+    );
+}
+
 void Scene::rasterizeFrustumCulling(
     RenderContext* pRenderContext,
     GraphicsState* pState,
