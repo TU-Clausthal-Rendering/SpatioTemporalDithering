@@ -70,23 +70,36 @@ inline std::vector<std::array<int, T* T>> generateBestPermutations(size_t maxRes
     std::sort(scoredPermutations.begin(), scoredPermutations.end(),
         [](const auto& a, const auto& b) { return a.first > b.first; });
 
-    // Save sorted permutations to CSV
-    auto filename = "permutations.csv";
+    /*
+    double lastScore = 0;
+    int count = 0;
+    auto filename = "permutations.txt";
     std::ofstream file(filename);
     if (file.is_open()) {
-        file << "Rank,Score\n";
-        for (size_t i = 0; i < scoredPermutations.size(); ++i) {
-            if(scoredPermutations[i].first == 0.0) break; // stop when score falls to zero
-            file << i + 1 << "," << scoredPermutations[i].first << "\n";
-        }
+        for (const auto& perm : scoredPermutations) {
+            if (abs(perm.first - lastScore) > 0.01)
+            {
+                if (count > 0) file << "Total: " << count << "\n\n";
 
-        file.close();
-        std::cout << "CSV saved as: " << filename << std::endl;
+                lastScore = perm.first;
+                count = 0;
+                file << "Score: " << lastScore << "\n";
+            }
+            ++count;
+
+            for (size_t i = 0; i < T; i++) {
+                for (size_t j = 0; j < T; j++) {
+                    file << perm.second[i * T + j] << " ";
+                }
+                file << "\n";
+            }
+            file << "-----\n";
+        }
     }
 
-    double lastScore = 0;
+    lastScore = 0;
     int printCount = 0;
-    int count = 0;
+    count = 0;
     // print a preview of the matrices
     for (const auto& perm : scoredPermutations) {
         if(abs(perm.first - lastScore) > 0.01)
@@ -111,7 +124,7 @@ inline std::vector<std::array<int, T* T>> generateBestPermutations(size_t maxRes
         std::cout << "-----\n";
     }
     std::cout << "Total: " << count << "\n\n";
-
+    */
     // Return only the best results
     std::vector<std::array<int, T* T>> bestPermutations;
     for (size_t i = 0; i < std::min(maxResults, scoredPermutations.size()); ++i) {
