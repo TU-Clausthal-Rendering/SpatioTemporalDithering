@@ -70,16 +70,24 @@ RenderPassReflection UnpackVBuffer::reflect(const CompileData& compileData)
     RenderPassReflection reflector;
     auto in = reflector.addInput(kVBuffer, "vbuffer");
     // get input dim
-    uint2 dim = compileData.defaultTexDims;
-    if (in.isValid())
-        dim = { in.getWidth(), in.getHeight() };
+    mLastDim = compileData.defaultTexDims;
+    auto vbuffer = compileData.connectedResources.getField(kVBuffer);
+    if (vbuffer)
+        mLastDim = { vbuffer->getWidth(), vbuffer->getHeight() };
 
-    addRenderPassOutputs(reflector, kVBufferExtraChannels, ResourceBindFlags::UnorderedAccess, dim);
+    addRenderPassOutputs(reflector, kVBufferExtraChannels, ResourceBindFlags::UnorderedAccess, mLastDim);
     return reflector;
 }
 
 void UnpackVBuffer::compile(RenderContext* pRenderContext, const CompileData& compileData)
 {
+    auto vbuffer = compileData.connectedResources.getField(kVBuffer);
+    if (!vbuffer) throw std::runtime_error("UnpackVBuffer: VBuffer input not connected");
+
+    if (mLastDim.x != vbuffer->getWidth() || mLastDim.y != vbuffer->getHeight())
+        throw std::runtime_error("UnpackVBuffer: Output size mismatch");
+
+
     mpComputePass.reset();
 }
 

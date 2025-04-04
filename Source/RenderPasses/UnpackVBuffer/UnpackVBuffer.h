@@ -54,4 +54,5 @@ private:
 
     ref<ComputePass> mpComputePass;
     ref<Scene> mpScene;
+    uint2 mLastDim;
 };
