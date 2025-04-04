@@ -222,16 +222,16 @@ public:
         switch (scale)
         {
         case RenderScale::Quality:
-            res = uint2(float2(displaySize) * 0.667f);
+            res = uint2(ceil(float2(displaySize) * 0.667f));
             break;
         case RenderScale::Balanced:
-            res = uint2(float2(displaySize) * 0.58f);
+            res = uint2(ceil(float2(displaySize) * 0.58f));
             break;
         case RenderScale::Performance:
-            res = uint2(float2(displaySize) * 0.50f);
+            res = uint2(ceil(float2(displaySize) * 0.50f));
             break;
         case RenderScale::UtraPerformance:
-            res = uint2(float2(displaySize) * 0.333f);
+            res = uint2(ceil(float2(displaySize) * 0.333f));
             break;
         }
         res = max(res, uint2(1));
