@@ -100,11 +100,6 @@ void DitherTAA::execute(RenderContext* pRenderContext, const RenderData& renderD
     allocatePrevColorAndHistory(pColorOut.get());
     mpFbo->attachColorTarget(pColorOut, 0);
 
-    // Make sure the dimensions match
-    FALCOR_ASSERT((pColorIn->getWidth() == mpPrevColor->getWidth()) && (pColorIn->getWidth() == pMotionVec->getWidth()));
-    FALCOR_ASSERT((pColorIn->getHeight() == mpPrevColor->getHeight()) && (pColorIn->getHeight() == pMotionVec->getHeight()));
-    FALCOR_ASSERT(pColorIn->getSampleCount() == 1 && mpPrevColor->getSampleCount() == 1 && pMotionVec->getSampleCount() == 1);
-
     {
         FALCOR_PROFILE(pRenderContext, "TAA");
 

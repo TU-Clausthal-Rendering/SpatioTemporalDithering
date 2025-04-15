@@ -190,6 +190,51 @@ void DLSSPass::renderUI(Gui::Widgets& widget)
     }
 }
 
+void DLSSPass::compile(RenderContext* pRenderContext, const CompileData& compileData)
+{
+    // find best match for input size
+    auto in = compileData.connectedResources.getField(kColorInput);
+    auto out = compileData.connectedResources.getField(kOutput);
+
+    if (!in || !out) return;
+
+    uint2 renderSize = { in->getWidth(), in->getHeight() };
+    uint2 displaySize = { out->getWidth(), out->getHeight() };
+    if (displaySize.x == 0 || displaySize.y == 0)
+    {
+        displaySize = compileData.defaultTexDims;
+    }
+
+    // go through all profiles and find the best match
+    auto profiles = {
+        NVSDK_NGX_PerfQuality_Value_DLAA,
+        NVSDK_NGX_PerfQuality_Value_UltraPerformance,
+        NVSDK_NGX_PerfQuality_Value_MaxPerf,
+        NVSDK_NGX_PerfQuality_Value_Balanced,
+        NVSDK_NGX_PerfQuality_Value_MaxQuality,
+        //NVSDK_NGX_PerfQuality_Value_UltraQuality
+    };
+
+    if (!mpNGXWrapper)
+        mpNGXWrapper.reset(new NGXWrapper(mpDevice, getRuntimeDirectory(), getRuntimeDirectory()));
+
+    auto bestProfile = NVSDK_NGX_PerfQuality_Value_DLAA;
+    auto bestDiff = std::numeric_limits<int>::max();
+    for (auto p : profiles)
+    {
+        auto set = mpNGXWrapper->queryOptimalSettings(displaySize, p);
+        auto diff = abs(int(set.optimalRenderSize.x) - int(renderSize.x)) + abs(int(set.optimalRenderSize.y) - int(renderSize.y));
+        if (diff < bestDiff)
+        {
+            bestDiff = diff;
+            bestProfile = p;
+        }
+    }
+
+    // set the profile to the best match
+    mProfile = Profile(bestProfile);
+}
+
 void DLSSPass::initializeDLSS(RenderContext* pRenderContext)
 {
     if (!mpNGXWrapper)

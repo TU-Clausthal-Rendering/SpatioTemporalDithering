@@ -40,12 +40,12 @@ public:
 
     enum class Profile : uint32_t
     {
-        MaxPerformance,
-        Balanced,
-        MaxQuality,
-        UltraPerformance,
+        MaxPerformance = NVSDK_NGX_PerfQuality_Value_MaxPerf,
+        Balanced = NVSDK_NGX_PerfQuality_Value_Balanced,
+        MaxQuality = NVSDK_NGX_PerfQuality_Value_MaxQuality,
+        UltraPerformance = NVSDK_NGX_PerfQuality_Value_UltraPerformance,
         //UltraQuality, //Not Available
-        DLAA,
+        DLAA = NVSDK_NGX_PerfQuality_Value_DLAA,
     };
 
     FALCOR_ENUM_INFO(
@@ -111,7 +111,7 @@ public:
     virtual void setScene(RenderContext* pRenderContext, const ref<Scene>& pScene) override;
     virtual void execute(RenderContext* pRenderContext, const RenderData& renderData) override;
     virtual void renderUI(Gui::Widgets& widget) override;
-
+    virtual void compile(RenderContext* pRenderContext, const CompileData& compileData) override;
 private:
     void initializeDLSS(RenderContext* pRenderContext);
     void executeInternal(RenderContext* pRenderContext, const RenderData& renderData);
