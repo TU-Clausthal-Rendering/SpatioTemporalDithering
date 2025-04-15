@@ -201,6 +201,7 @@ namespace Falcor
     void NGXWrapper::initializeDLSSD(
         RenderContext* pRenderContext,
         uint2 renderSize,
+        uint2 displaySize,
         bool isContentHDR,
         bool depthInverted,
         bool useMVJitteredFlag
@@ -219,8 +220,8 @@ namespace Falcor
         NVSDK_NGX_DLSSD_Create_Params params = {};
         params.InWidth = renderSize.x;
         params.InHeight = renderSize.y;
-        params.InTargetWidth = renderSize.x;
-        params.InTargetHeight = renderSize.y;
+        params.InTargetWidth = displaySize.x;
+        params.InTargetHeight = displaySize.y;
         params.InPerfQualityValue = NVSDK_NGX_PerfQuality_Value_DLAA;
         params.InFeatureCreateFlags = createFlags;
         // new flags
@@ -360,8 +361,8 @@ namespace Falcor
             params.pInViewToClipMatrix = reinterpret_cast<float*>(&projectionMatrix);
             params.pInTransparencyLayer = getHandle(pTransparent);
 
-            params.InRenderSubrectDimensions.Width = pOut->getWidth();
-            params.InRenderSubrectDimensions.Height = pOut->getHeight();
+            params.InRenderSubrectDimensions.Width = pColorIn->getWidth();
+            params.InRenderSubrectDimensions.Height = pColorIn->getHeight();
 
             ID3D12GraphicsCommandList* pCommandList =
                 pRenderContext->getLowLevelData()->getCommandBufferNativeHandle().as<ID3D12GraphicsCommandList*>();

@@ -51,9 +51,12 @@ namespace Falcor
         ~NGXWrapper();
 
         /// Initialize DLSSD. Throws an exception if unable to initialize.
+        /// renderSize: input
+        /// displaySize: output
         void initializeDLSSD(
             RenderContext* pRenderContext,
             uint2 renderSize,
+            uint2 displaySize,
             bool isContentHDR,
             bool depthInverted,
             bool useMVJitteredFlag

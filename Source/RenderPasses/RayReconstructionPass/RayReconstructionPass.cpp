@@ -111,6 +111,7 @@ void RayReconstructionPass::execute(RenderContext* pRenderContext, const RenderD
         mpNGXWrapper->releaseDLSSD();
         mpNGXWrapper->initializeDLSSD(
             pRenderContext,
+            uint2(pColorIn->getWidth(), pColorIn->getHeight()),
             uint2(pOut->getWidth(), pOut->getHeight()),
             true, false, false
         );
