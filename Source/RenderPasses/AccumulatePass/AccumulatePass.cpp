@@ -102,11 +102,17 @@ Properties AccumulatePass::getProperties() const
 RenderPassReflection AccumulatePass::reflect(const CompileData& compileData)
 {
     RenderPassReflection reflector;
-    const uint2 sz = RenderPassHelpers::calculateIOSize(mOutputSizeSelection, mFixedOutputSize, compileData.defaultTexDims);
+
+    uint2 sz = RenderPassHelpers::calculateIOSize(mOutputSizeSelection, mFixedOutputSize, compileData.defaultTexDims);
     const auto fmt = mOutputFormat != ResourceFormat::Unknown ? mOutputFormat : ResourceFormat::RGBA32Float;
 
     reflector.addInput(kInputChannel, "Input data to be temporally accumulated").bindFlags(ResourceBindFlags::ShaderResource);
+
+    auto in = compileData.connectedResources.getField(kInputChannel);
+    if (in) sz = { in->getWidth(), in->getHeight() };
+
     reflector.addOutput(kOutputChannel, "Output data that is temporally accumulated").bindFlags(ResourceBindFlags::RenderTarget | ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource).format(fmt).texture2D(sz.x, sz.y);
+    mLastDim = sz;
     return reflector;
 }
 
@@ -335,6 +341,18 @@ void AccumulatePass::onHotReload(HotReloadFlags reloaded)
 {
     // Reset accumulation if programs changed.
     if (is_set(reloaded, HotReloadFlags::Program)) reset();
+}
+
+void AccumulatePass::compile(RenderContext* pRenderContext, const CompileData& compileData)
+{
+    auto in = compileData.connectedResources.getField(kInputChannel);
+    //auto out = compileData.connectedResources.getField(kOutputChannel);
+
+    if (!in) return;
+
+    uint2 inDim = { in->getWidth(), in->getHeight() };
+    
+    if (any(inDim != mLastDim)) throw std::runtime_error("AccumulatePass: Input and output dimensions must match.");
 }
 
 void AccumulatePass::setEnabled(bool enabled)

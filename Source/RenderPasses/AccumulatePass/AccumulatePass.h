@@ -59,6 +59,7 @@ public:
     virtual bool onMouseEvent(const MouseEvent& mouseEvent) override { return false; }
     virtual bool onKeyEvent(const KeyboardEvent& keyEvent) override { return false; }
     virtual void onHotReload(HotReloadFlags reloaded) override;
+    virtual void compile(RenderContext* pRenderContext, const CompileData& compileData) override;
 
     bool isEnabled() const { return mEnabled; }
     void setEnabled(bool enabled);
@@ -119,7 +120,8 @@ protected:
 
     ResourceFormat              mOutputFormat = ResourceFormat::Unknown;                    ///< Output format (uses default when set to ResourceFormat::Unknown).
     RenderPassHelpers::IOSize   mOutputSizeSelection = RenderPassHelpers::IOSize::Default;  ///< Selected output size.
-    uint2                       mFixedOutputSize = { 512, 512 };                            ///< Output size in pixels when 'Fixed' size is selected.
+    uint2                       mFixedOutputSize = { 512, 512 };
+    uint2 mLastDim = uint2(0);///< Output size in pixels when 'Fixed' size is selected.
 };
 
 FALCOR_ENUM_REGISTER(AccumulatePass::Precision);
