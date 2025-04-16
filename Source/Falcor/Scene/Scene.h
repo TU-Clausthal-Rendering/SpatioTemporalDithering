@@ -1013,6 +1013,14 @@ public:
         bool drawShadowThrowable = true
     );
 
+    void rasterizeDynamic(
+        RenderContext* pRenderContext,
+        GraphicsState* pState,
+        GraphicsVars* pVars,
+        RasterizerState::CullMode cullMode,
+        std::function<bool(const MeshDesc&, const Material&)> predicate = [](const MeshDesc&, const Material&) { return true; }
+    );
+
     /** Render the scene using the rasterizer.
         This overload uses the supplied rasterizer states.
         \param[in] pRenderContext Render context.
