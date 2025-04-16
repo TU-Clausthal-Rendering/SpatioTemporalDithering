@@ -31,14 +31,14 @@
 
 using namespace Falcor;
 
-class RasterVBuffer : public RenderPass
+class RasterOITLinkedList : public RenderPass
 {
 public:
-    FALCOR_PLUGIN_CLASS(RasterVBuffer, "RasterVBuffer", "Rasterize opaque objects");
+    FALCOR_PLUGIN_CLASS(RasterOITLinkedList, "RasterOITLinkedList", "OIT with per-pixel linked lists");
 
-    static ref<RasterVBuffer> create(ref<Device> pDevice, const Properties& props) { return make_ref<RasterVBuffer>(pDevice, props); }
+    static ref<RasterOITLinkedList> create(ref<Device> pDevice, const Properties& props) { return make_ref<RasterOITLinkedList>(pDevice, props); }
 
-    RasterVBuffer(ref<Device> pDevice, const Properties& props);
+    RasterOITLinkedList(ref<Device> pDevice, const Properties& props);
 
     virtual Properties getProperties() const override;
     virtual RenderPassReflection reflect(const CompileData& compileData) override;
@@ -50,24 +50,18 @@ public:
     virtual bool onKeyEvent(const KeyboardEvent& keyEvent) override { return false; }
 
 private:
-
     void setupProgram();
-    // returns true if at least one material was whitelisted (or scene was invalid)
-    bool hasWhitelistMaterials();
 
     ref<Scene> mpScene;
 
-    ref<CPUSampleGenerator> mpSamplePattern;
-
-    bool mUseTransparencyWhitelist = false;
-    std::set<std::string> mTransparencyWhitelist;
-    bool mUseAlphaTextureLOD = false; // use lod for alpha lookups
-
     ref<GraphicsState> mpState;
     ref<GraphicsProgram> mpProgram;
-    ref<GraphicsProgram> mpOpaqueProgram;
     ref<GraphicsVars> mpVars;
     ref<Fbo> mpFbo;
 
-    bool mCullBackFaces = true;
+    ref<Buffer> mpCountBuffer;
+    ref<Buffer> mpDataBuffer;
+
+    uint mDataBufferSize = 1024 * 1024 * 40;
+    
 };

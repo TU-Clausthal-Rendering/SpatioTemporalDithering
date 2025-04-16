@@ -148,10 +148,6 @@ void RasterVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     {
         renderData.getDictionary()[kWhitelist] = mTransparencyWhitelist;
     }
-    else
-    {
-        renderData.getDictionary()[kWhitelist] = decltype(mTransparencyWhitelist)();
-    }
 }
 
 void RasterVBuffer::renderUI(Gui::Widgets& widget)
