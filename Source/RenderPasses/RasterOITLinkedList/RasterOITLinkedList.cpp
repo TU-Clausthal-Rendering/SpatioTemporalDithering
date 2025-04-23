@@ -137,7 +137,7 @@ void RasterOITLinkedList::execute(RenderContext* pRenderContext, const RenderDat
             whitelist = renderData.getDictionary().getValue<decltype(whitelist)>(kWhitelist);
 
         mpState->setProgram(mpProgram);
-        /*mpScene->rasterizeDynamic(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None,
+        mpScene->rasterizeDynamic(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None,
             [&](const MeshDesc& meshDesc, const Material& material)
             {
                 if (material.isOpaque()) return false;
@@ -146,8 +146,8 @@ void RasterOITLinkedList::execute(RenderContext* pRenderContext, const RenderDat
                 std::string name = material.getName();
                 // draw if not in whitelist (=> alpha tested)
                 return whitelist.find(name) != whitelist.end();
-            });*/
-        mpScene->rasterize(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None, RasterizerState::MeshRenderMode::SkipOpaque);
+            });
+        //mpScene->rasterize(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None, RasterizerState::MeshRenderMode::SkipOpaque);
     }
     //return;
     {

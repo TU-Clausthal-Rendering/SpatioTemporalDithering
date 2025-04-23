@@ -411,8 +411,8 @@ void Scene::rasterizeDynamic(
         const auto& worldMat = globalMatrices[instance.globalMatrixID];
         const AABB& meshBB = mMeshBBs[instance.geometryID];
 
-        bool inFrustrum = mesh.isSkinned() || mpCameraCulling->isInFrustum(meshBB.transform(worldMat));
-
+        //bool inFrustrum = mesh.isSkinned() || mpCameraCulling->isInFrustum(meshBB.transform(worldMat));
+        bool inFrustrum = true;
         if (inFrustrum && predicate(mesh, *mat))
         {
             // Set state.
@@ -423,14 +423,18 @@ void Scene::rasterizeDynamic(
             else
                 pState->setRasterizerState(mFrontCounterClockwiseRS[cullMode]);
 
-            pRenderContext->drawIndexedInstanced(
-                pState, pVars,
-                mesh.indexCount, // index count
-                1, // instance count
-                mesh.ibOffset * (use16Bit ? 2 : 1), // start index location
-                mesh.vbOffset, // base vertex location
-                instanceID // start instance location
-            );
+            if (hasIndexBuffer())
+            {
+                pRenderContext->drawIndexedInstanced(
+                    pState, pVars,
+                    mesh.indexCount, // index count
+                    1, // instance count
+                    mesh.ibOffset * (use16Bit ? 2 : 1), // start index location
+                    mesh.vbOffset, // base vertex location
+                    instanceID // start instance location
+                );
+            }
+
         }
 
         instanceID++;
