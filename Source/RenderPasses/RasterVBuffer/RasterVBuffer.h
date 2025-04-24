@@ -70,4 +70,5 @@ private:
     ref<Fbo> mpFbo;
 
     bool mCullBackFaces = true;
+    ref<FrustumCulling> mpCulling;
 };

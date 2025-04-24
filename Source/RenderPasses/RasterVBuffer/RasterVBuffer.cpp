@@ -123,24 +123,37 @@ void RasterVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     {
         FALCOR_PROFILE(pRenderContext, "Opaque");
         mpState->setProgram(mpOpaqueProgram);
-        mpScene->rasterizeDynamic(pRenderContext, mpState.get(), mpVars.get(), cullMode,
-            [this](const MeshDesc& meshDesc, const Material& material)
-            {
-                return material.isOpaque();
-            });
+        mpScene->rasterizeFrustumCulling(pRenderContext, mpState.get(), mpVars.get(), cullMode, RasterizerState::MeshRenderMode::SkipNonOpaque);
     }
+
     if (mUseTransparencyWhitelist) // if whitelist is not used, this means all alpha tests are treated as transparent (not handled by this pass)
     {
         FALCOR_PROFILE(pRenderContext, "Alpha Test");
+
         mpState->setProgram(mpProgram);
-        mpScene->rasterizeDynamic(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None,
-            [this](const MeshDesc& meshDesc, const Material& material)
-            {
-                if (material.isOpaque()) return false;
-                std::string name = material.getName();
-                // draw if not in whitelist (=> alpha tested)
-                return mTransparencyWhitelist.find(name) == mTransparencyWhitelist.end();
-            });
+
+        auto camera = mpScene->getCamera();
+        if (!mpCulling)
+        {
+            mpCulling = make_ref<FrustumCulling>(camera);
+        }
+
+        mpCulling->setUserCallback([&](const MeshDesc& mesh)
+        {
+            auto mat = mpScene->getMaterial(MaterialID::fromSlang(mesh.materialID));
+            auto name = mat->getName();
+            // draw if not in whitelist (=> alpha tested)
+            return mTransparencyWhitelist.find(name) == mTransparencyWhitelist.end();
+        });
+
+        auto cameraChanges = camera->getChanges();
+        auto excluded = Camera::Changes::Jitter | Camera::Changes::History;
+        if (((cameraChanges & ~excluded) != Camera::Changes::None))
+        {
+            mpCulling->updateFrustum(camera);
+        }
+
+        mpScene->rasterizeFrustumCulling(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None, RasterizerState::MeshRenderMode::SkipOpaque, true, mpCulling);
     }
 
     // add whitelist to dict
@@ -187,6 +200,7 @@ void RasterVBuffer::setScene(RenderContext* pRenderContext, const ref<Scene>& pS
     mpScene = pScene;
     setupProgram();
     mUseTransparencyWhitelist = hasWhitelistMaterials();
+    mpCulling = nullptr;
 }
 
 void RasterVBuffer::setupProgram()

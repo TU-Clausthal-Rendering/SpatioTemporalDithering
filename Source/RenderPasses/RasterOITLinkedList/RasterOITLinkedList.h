@@ -65,5 +65,5 @@ private:
     ref<Buffer> mpDataBuffer;
 
     uint mDataBufferSize = 1024 * 1024 * 40;
-    
+    ref<FrustumCulling> mpCulling;
 };

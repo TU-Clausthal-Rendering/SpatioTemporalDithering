@@ -374,74 +374,6 @@ void Scene::rasterize(
     );
 }
 
-void Scene::rasterizeDynamic(
-    RenderContext* pRenderContext,
-    GraphicsState* pState,
-    GraphicsVars* pVars,
-    RasterizerState::CullMode cullMode,
-    std::function<bool(const MeshDesc&, const Material&)> predicate)
-{
-    FALCOR_PROFILE(pRenderContext, "rasterizeSceneD");
-
-    pVars->setParameterBlock(kParameterBlockName, mpSceneBlock);
-
-    auto pCurrentRS = pState->getRasterizerState();
-    const auto& globalMatrices = mpAnimationController->getGlobalMatrices();
-
-    // init frustrum culling helper
-    const auto& camera = mCameras[mSelectedCamera];
-    if (!mpCameraCulling)
-    {
-        mpCameraCulling = make_ref<FrustumCulling>(camera);
-    }
-    mpCameraCulling->updateFrustum(camera);
-
-    uint32_t instanceID = 0;
-    for (const auto& instance : mGeometryInstanceData)
-    {
-        if (instance.getType() != GeometryType::TriangleMesh)
-            continue;
-
-        const auto& mesh = mMeshDesc[instance.geometryID];
-        bool use16Bit = mesh.use16BitIndices();
-        //bool isDynamic = mesh.isAnimated() || mesh.isDynamic();
-        const auto mat = getMaterial(MaterialID::fromSlang(mesh.materialID));
-
-        // frustrum culling data
-        const auto& worldMat = globalMatrices[instance.globalMatrixID];
-        const AABB& meshBB = mMeshBBs[instance.geometryID];
-
-        //bool inFrustrum = mesh.isSkinned() || mpCameraCulling->isInFrustum(meshBB.transform(worldMat));
-        bool inFrustrum = true;
-        if (inFrustrum && predicate(mesh, *mat))
-        {
-            // Set state.
-            pState->setVao(use16Bit ? mpMeshVao16Bit : mpMeshVao);
-
-            if (mesh.isFrontFaceCW())
-                pState->setRasterizerState(mFrontClockwiseRS[cullMode]);
-            else
-                pState->setRasterizerState(mFrontCounterClockwiseRS[cullMode]);
-
-            if (hasIndexBuffer())
-            {
-                pRenderContext->drawIndexedInstanced(
-                    pState, pVars,
-                    mesh.indexCount, // index count
-                    1, // instance count
-                    mesh.ibOffset * (use16Bit ? 2 : 1), // start index location
-                    mesh.vbOffset, // base vertex location
-                    instanceID // start instance location
-                );
-            }
-
-        }
-
-        instanceID++;
-    }
-
-    pState->setRasterizerState(pCurrentRS);
-}
 
 void Scene::rasterize(
     RenderContext* pRenderContext,
@@ -729,7 +661,8 @@ void Scene::rasterizeFrustumCulling(
 
                 // If the mesh passes the culling test, add to draw buffer
                 //  TODO: Add a better/functioning precalculated BB for skinned meshes
-                if (pFrustumCulling->isInFrustum(meshBB.transform(worldMat)) || mesh.isSkinned())
+                if (pFrustumCulling->isUserAllowed(mesh) &&
+                    (pFrustumCulling->isInFrustum(meshBB.transform(worldMat)) || mesh.isSkinned()))
                 {
                     DrawIndexedArguments drawArg;
                     drawArg.IndexCountPerInstance = mesh.indexCount;
@@ -762,7 +695,8 @@ void Scene::rasterizeFrustumCulling(
                 const auto& mesh = mMeshDesc[instance.geometryID];
                 // If the mesh passes the culling test, add to draw buffer
                 // TODO: Add a better/functioning precalculated BB for skinned meshes
-                if (pFrustumCulling->isInFrustum(meshBB.transform(worldMat)) || mesh.isSkinned())
+                if (pFrustumCulling->isUserAllowed(mesh) &&
+                    (pFrustumCulling->isInFrustum(meshBB.transform(worldMat)) || mesh.isSkinned()))
                 {
                     DrawArguments drawArg;
                     drawArg.VertexCountPerInstance = mesh.vertexCount;

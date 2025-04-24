@@ -137,17 +137,28 @@ void RasterOITLinkedList::execute(RenderContext* pRenderContext, const RenderDat
             whitelist = renderData.getDictionary().getValue<decltype(whitelist)>(kWhitelist);
 
         mpState->setProgram(mpProgram);
-        mpScene->rasterizeDynamic(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None,
-            [&](const MeshDesc& meshDesc, const Material& material)
-            {
-                if (material.isOpaque()) return false;
-                if (!useWhitelist) return true; // draw all transparent objects
-                // check whitelist first
-                std::string name = material.getName();
-                // draw if not in whitelist (=> alpha tested)
-                return whitelist.find(name) != whitelist.end();
-            });
-        //mpScene->rasterize(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None, RasterizerState::MeshRenderMode::SkipOpaque);
+        auto camera = mpScene->getCamera();
+        if(!mpCulling)
+        {
+            mpCulling = make_ref<FrustumCulling>(camera);
+        }
+
+        mpCulling->setUserCallback([&](const MeshDesc& mesh)
+        {
+            if (!useWhitelist) return true; // draw all transparent objects
+            auto mat = mpScene->getMaterial(MaterialID::fromSlang(mesh.materialID));
+            auto name = mat->getName();
+            return whitelist.find(name) != whitelist.end();
+        });
+
+        auto cameraChanges = camera->getChanges();
+        auto excluded = Camera::Changes::Jitter | Camera::Changes::History;
+        if (((cameraChanges & ~excluded) != Camera::Changes::None))
+        {
+            mpCulling->updateFrustum(camera);
+        }
+
+        mpScene->rasterizeFrustumCulling(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None, RasterizerState::MeshRenderMode::SkipOpaque, true, mpCulling);
     }
     //return;
     {
@@ -176,6 +187,7 @@ void RasterOITLinkedList::setScene(RenderContext* pRenderContext, const ref<Scen
 {
     mpScene = pScene;
     setupProgram();
+    mpCulling = nullptr;
 }
 
 void RasterOITLinkedList::setupProgram()

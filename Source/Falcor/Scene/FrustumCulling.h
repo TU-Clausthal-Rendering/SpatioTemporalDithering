@@ -65,6 +65,12 @@ namespace Falcor
         // Frustum Culling Test. Assumes AABB is transformed to world coordinates
         bool isInFrustum(const AABB& aabb) const;
 
+        virtual bool isUserAllowed(const MeshDesc& mesh) const
+        {
+            if (!mUserCallback) return true;
+            return mUserCallback(mesh);
+        }
+
         //Returns the number of draw buffers
         size_t getDrawBufferSize() { return mDraw.size(); }
 
@@ -97,6 +103,7 @@ namespace Falcor
         bool isBufferValid(uint index) { return mValidDrawBuffer[index]; }
         void invalidateAllDrawBuffers();
 
+        void setUserCallback(std::function<bool(const MeshDesc&)> cb) { mUserCallback = cb; }
     private:
         static const uint kStagingFramesInFlight = 6u;
 
@@ -153,5 +160,7 @@ namespace Falcor
 
         std::vector<std::vector<uint>> mDynamicInstanceID;  //The dynamic instance id is stored to check if the culling buffer does not need to be copied again
         std::vector<uint> mDynamicDrawArgsToInstanceID;     //Mapping buffer to map between drawArgs and the above vector
+
+        std::function<bool(const MeshDesc&)> mUserCallback;
     };
 }
