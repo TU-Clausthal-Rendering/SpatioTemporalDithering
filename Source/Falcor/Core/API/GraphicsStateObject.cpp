@@ -281,17 +281,9 @@ GraphicsStateObject::GraphicsStateObject(ref<Device> pDevice, const Desc& desc) 
         spDefaultRasterizerState = RasterizerState::create(RasterizerState::Desc());
     }
 
-    // Initialize default objects
-    if (!mDesc.mpBlendState)
-        mDesc.mpBlendState = spDefaultBlendState;
-    if (!mDesc.mpRasterizerState)
-        mDesc.mpRasterizerState = spDefaultRasterizerState;
-    if (!mDesc.mpDepthStencilState)
-        mDesc.mpDepthStencilState = spDefaultDepthStencilState;
-
     gfx::GraphicsPipelineStateDesc gfxDesc = {};
     // Set blend state.
-    auto blendState = mDesc.getBlendState();
+    auto blendState = mDesc.mpBlendState ? mDesc.mpBlendState : spDefaultBlendState;
     FALCOR_ASSERT(blendState->getRtCount() <= gfx::kMaxRenderTargetCount);
     auto& targetBlendDescs = gfxDesc.blend.targets;
     {
@@ -324,7 +316,7 @@ GraphicsStateObject::GraphicsStateObject(ref<Device> pDevice, const Desc& desc) 
 
     // Set depth stencil state.
     {
-        auto depthStencilState = mDesc.getDepthStencilState();
+        const auto& depthStencilState = mDesc.mpDepthStencilState ? mDesc.mpDepthStencilState : spDefaultDepthStencilState;
         getGFXStencilDesc(gfxDesc.depthStencil.backFace, depthStencilState->getStencilDesc(Falcor::DepthStencilState::Face::Back));
         getGFXStencilDesc(gfxDesc.depthStencil.frontFace, depthStencilState->getStencilDesc(Falcor::DepthStencilState::Face::Front));
         gfxDesc.depthStencil.depthFunc = getGFXComparisonFunc(depthStencilState->getDepthFunc());
@@ -338,7 +330,7 @@ GraphicsStateObject::GraphicsStateObject(ref<Device> pDevice, const Desc& desc) 
 
     // Set raterizer state.
     {
-        auto rasterState = mDesc.getRasterizerState();
+        const auto& rasterState = mDesc.mpRasterizerState ? mDesc.mpRasterizerState : spDefaultRasterizerState;
         gfxDesc.rasterizer.antialiasedLineEnable = rasterState->isLineAntiAliasingEnabled();
         gfxDesc.rasterizer.cullMode = getGFXCullMode(rasterState->getCullMode());
         gfxDesc.rasterizer.depthBias = rasterState->getDepthBias();
