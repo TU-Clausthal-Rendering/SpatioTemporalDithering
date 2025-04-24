@@ -9,6 +9,7 @@ class FALCOR_API ShadowSettings
 public:
     enum class RayConeShadow
     {
+        Disabled,
         RawAlpha,
         AlphaTest,
         Saturated,
@@ -18,6 +19,7 @@ public:
     FALCOR_ENUM_INFO(
         RayConeShadow,
         {
+            {RayConeShadow::Disabled, "Disabled" },
             { RayConeShadow::RawAlpha, "RawAlpha" },
             { RayConeShadow::AlphaTest, "AlphaTest" },
             { RayConeShadow::Saturated, "Saturated" },

@@ -17,10 +17,11 @@ SamplerState gSoftShadowSampler; // modified clamping mode to get softer borders
 #define USE_RAYCONES 1
 #endif
 
-#define RAY_CONE_SHADOW_RAY 0
-#define RAY_CONE_SHADOW_ALPHA_TEST 1
-#define RAY_CONE_SHADOW_SATURATED 2
-#define RAY_CONE_SHADOW_OPAQUE 3
+#define RAY_CONE_SHADOW_DISABLED 0
+#define RAY_CONE_SHADOW_RAY 1
+#define RAY_CONE_SHADOW_ALPHA_TEST 2
+#define RAY_CONE_SHADOW_SATURATED 3
+#define RAY_CONE_SHADOW_OPAQUE 4
 
 #ifndef RAY_CONE_SHADOW
 #define RAY_CONE_SHADOW RAY_CONE_SHADOW_SATURATED
@@ -129,7 +130,7 @@ RayDesc ray
 }
 
 float traceShadowRay(float3 posW, float3 normalW, uint lightIndex)
-{
+{    
     if (dot(normalW, posW.xyz - gScene.camera.getPosition()) > 0)
         normalW = -normalW;
     
@@ -173,6 +174,9 @@ float traceShadowRay(float3 posW, float3 normalW, uint lightIndex)
     if (dot(ray.Direction, normalW) <= 0.0)
         return 0.0; // backfacing surface
 
+    if (RAY_CONE_SHADOW == RAY_CONE_SHADOW_DISABLED)
+        return 1.0;
+    
     #if USE_RAYCONES
     float visibility = traceShadowRay(ray, rc);
     #else
