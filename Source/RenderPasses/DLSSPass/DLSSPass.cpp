@@ -199,6 +199,10 @@ void DLSSPass::compile(RenderContext* pRenderContext, const CompileData& compile
     if (!in || !out) return;
 
     uint2 renderSize = { in->getWidth(), in->getHeight() };
+    if(renderSize.x == 0 || renderSize.y == 0)
+    {
+        renderSize = compileData.defaultTexDims;
+    }
     uint2 displaySize = { out->getWidth(), out->getHeight() };
     if (displaySize.x == 0 || displaySize.y == 0)
     {
