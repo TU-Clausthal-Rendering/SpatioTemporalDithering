@@ -123,7 +123,7 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 
 #else // no upper limit for list length
 	// sort fragments between start and end
-    /*for (uint i = startIdx + 1; i < endIdx; ++i)
+    for (uint i = startIdx + 1; i < endIdx; ++i)
     {
         Fragment curFrag = gBuffer[i];
         uint j = i;
@@ -132,7 +132,7 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
             gBuffer[j] = gBuffer[j - 1];
         }
         gBuffer[j] = curFrag;
-    }*/
+    }
 
 	// blend fragments
 	// the fragment with the highest depth will be the first fragment
@@ -142,14 +142,14 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 	// background occlusion
     color.a = (1.0 - color.a);
 	
-    /*for (uint i = startIdx + 1; i < endIdx; ++i)
+    for (uint i = startIdx + 1; i < endIdx; ++i)
     {
         float4 next = unpackHalf4(gBuffer[i].color);
 		// fragment color
         color.rgb = next.a * next.rgb + (1.0 - next.a) * color.rgb;
 		// background occlusion
         color.a *= (1.0 - next.a);
-    }*/
+    }
 #endif
 
     gColor[pixel] = color;
