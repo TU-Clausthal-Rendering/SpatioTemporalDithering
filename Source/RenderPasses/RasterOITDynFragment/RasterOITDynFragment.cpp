@@ -172,11 +172,12 @@ void RasterOITDynFragment::execute(RenderContext* pRenderContext, const RenderDa
     // record fragments
     {
         FALCOR_PROFILE(pRenderContext, "Record");
+        mpProgram->removeDefine("COUNT");
 
+        vars["gCounts"] = mpCountBuffer;
         vars["gBuffer"] = mpDataBuffer;
         vars["gPrefix"] = m_scanAuxBuffer.front();
 
-        mpProgram->removeDefine("COUNT");
         mpState->setProgram(mpProgram);
 
         mpScene->rasterizeFrustumCulling(pRenderContext, mpState.get(), mpVars.get(), RasterizerState::CullMode::None, RasterizerState::MeshRenderMode::SkipOpaque, true, mpCulling);
@@ -269,7 +270,7 @@ void RasterOITDynFragment::performScan(RenderContext* pRenderContext)
             scanVars["BufferData"]["u_bufferSize"] = m_scanAuxBuffer.at(i)->getElementCount();
 
             // perform scan
-            mpScanPass->execute(pRenderContext, ((bs + elemPerWk - 1) / elemPerWk), 1, 1);
+            mpScanPass->execute(pRenderContext, ((bs + elemPerWk - 1) / elemPerWk) * s_scanWorkgroup, 1, 1);
 
             pRenderContext->uavBarrier(m_scanAuxBuffer[i].get());
             if (size_t(i + 1) < m_scanAuxBuffer.size())
@@ -297,7 +298,7 @@ void RasterOITDynFragment::performScan(RenderContext* pRenderContext)
         //if (i == 1) // last write
         //    commands.SetComputeRoot32BitConstant(m_scanConstantsIdx, UINT(m_scanLastIdx), 1);
 
-        mpScanPushPass->execute(pRenderContext, ((bs - elemPerWk) / 64), 1, 1);
+        mpScanPushPass->execute(pRenderContext, ((bs - elemPerWk) / 64) * s_scanWorkgroup, 1, 1);
 
         --i;
         pRenderContext->uavBarrier(m_scanAuxBuffer[i].get());
