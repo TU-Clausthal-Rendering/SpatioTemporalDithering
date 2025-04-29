@@ -69,6 +69,7 @@ private:
     ref<ComputePass> mpScanPushPass;
 
     ref<ComputePass> mpSortPass;
+    std::vector<ref<ComputePass>> mpOptimizedSortPasses;
 
     ref<Buffer> mpDataBuffer;
     ref<Buffer> mpCountBuffer;
@@ -81,4 +82,6 @@ private:
     UINT64 m_curScanSize = 0;
     UINT64 m_scanLastIdx = 0;
     std::vector<ref<Buffer>> m_scanAuxBuffer;
+
+    bool mOptimizeSort = true;
 };

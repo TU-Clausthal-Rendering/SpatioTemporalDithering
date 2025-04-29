@@ -6,6 +6,7 @@ struct Fragment // 4 * 4 byte
 {
     uint2 color;
     float depth;
+    uint pad;
 };
 
 RWStructuredBuffer<Fragment> gBuffer;
@@ -31,6 +32,10 @@ cbuffer PerFrame
     uint maxFragmentCount;
 }
 
+#ifndef MIN_FRAGMENT
+#define MIN_FRAGMENT 0
+#endif
+
 [numthreads(8, 8, 1)]
 void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localId : SV_GroupThreadID)
 {
@@ -49,16 +54,13 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
         return;
     }
 
+    const uint numFragments = endIdx - startIdx;
+    if (numFragments <= MIN_FRAGMENT) return; // this is handled by a different shader
+
 //#undef MAX_FRAGMENT
 #ifdef MAX_FRAGMENT
-	const uint numFragments = endIdx - startIdx;
-
-#if MAX_FRAGMENT > 8
-#define IN_LIST(i) i < numFragments
-#else
-// no early out is faster for very small lists
+    if (numFragments > MAX_FRAGMENT) return; // this is handled by a different shader
 #define IN_LIST(i) true
-#endif
 
 	// load fragments into registers
 	Fragment f[MAX_FRAGMENT];
@@ -66,14 +68,15 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 	emptyFrag.depth = FLOAT_MAX;
 	emptyFrag.color = 0;
 	[unroll] for(uint i = 0; i < MAX_FRAGMENT; ++i)
-	{
-		[flatten] if(i < numFragments) f[i] = fragStorage[startIdx + i];
+    {
+        [flatten] if (i < numFragments) f[i] = gBuffer[startIdx + i];
 		else f[i] = emptyFrag;
 	}
 
-#if MAX_FRAGMENT < 32
-	// sort registers (insertion sort)
-	[unroll] for(i = 1; i < MAX_FRAGMENT && IN_LIST(i); ++i)
+// #if MAX_FRAGMENT < 32
+
+    // sort registers (insertion sort)
+    [unroll] for (uint i = 1; i < MAX_FRAGMENT && IN_LIST(i); ++i)
 	{
 		// i - 1 elements are sorted
 		[unroll] for(uint j = i; j > 0 && f[j - 1].depth > f[j].depth; --j)
@@ -83,7 +86,7 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 			f[j - 1] = tmp;
 		}
 	}
-#else
+/*#else
 	// sort registers (shell sort)
 	const uint gaps[] = {111, 41, 13, 4, 1};
 	const uint maxGaps = 5;
@@ -108,13 +111,13 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 	}
 
 
-#endif
+#endif*/
 
 
 	float4 color = float4(0.0, 0.0, 0.0, 1.0);
 
 	// now blend together (front to back)
-	[unroll] for(i = 0; i < MAX_FRAGMENT && IN_LIST(i); ++i)
+	[unroll] for(uint i = 0; i < MAX_FRAGMENT && IN_LIST(i); ++i)
 	{
 		float4 c = unpackHalf4(f[i].color);
 		color.rgb += color.a * c.a * c.rgb;

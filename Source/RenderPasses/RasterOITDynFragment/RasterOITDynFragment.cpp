@@ -64,6 +64,26 @@ RasterOITDynFragment::RasterOITDynFragment(ref<Device> pDevice, const Properties
     mpScanPushPass = ComputePass::create(mpDevice, kScanPushFile);
 
     mpSortPass = ComputePass::create(mpDevice, kSortFile);
+
+    // optimized sort passes
+    // maximum fragment count for the resolve stage. 0 means unlimited
+    static constexpr auto resolveIntervals = std::array{ 0, 256, 128, 64, 32, 16, 8, 4, 0 /*only for MIN_FRAGMENT*/ };
+
+    DefineList s;
+    s["MIN_FRAGMENT"] = std::to_string(resolveIntervals[1]);
+    mpOptimizedSortPasses.push_back(ComputePass::create(mpDevice, kSortFile, "main", s));
+    for (size_t i = 1; i < resolveIntervals.size() - 1; ++i)
+    {
+        s["MAX_FRAGMENT"] = std::to_string(resolveIntervals[i]);
+        s["MIN_FRAGMENT"] = std::to_string(resolveIntervals[i + 1]);
+        mpOptimizedSortPasses.push_back(ComputePass::create(mpDevice, kSortFile, "main", s));
+    }
+
+    // share vars
+    for(auto& pass : mpOptimizedSortPasses)
+    {
+        pass->setVars(mpSortPass->getVars());
+    }
 }
 
 Properties RasterOITDynFragment::getProperties() const
@@ -100,6 +120,13 @@ void RasterOITDynFragment::execute(RenderContext* pRenderContext, const RenderDa
 
     pRenderContext->uavBarrier(mpCountBuffer.get());
 
+    for(auto& buffer : m_scanAuxBuffer)
+    {
+        pRenderContext->clearUAV(buffer->getUAV().get(), uint4(0));
+        pRenderContext->uavBarrier(buffer.get());
+    }
+
+
     if (!mpScene)
     {
         return;
@@ -109,6 +136,8 @@ void RasterOITDynFragment::execute(RenderContext* pRenderContext, const RenderDa
     {
         mpDataBuffer = Buffer::createStructured(mpDevice, sizeof(uint4), mDataBufferSize, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource, Buffer::CpuAccess::None);
     }
+    pRenderContext->clearUAV(mpDataBuffer->getUAV().get(), uint4(0));
+    pRenderContext->uavBarrier(mpDataBuffer.get());
 
     // obtain whitelist
     std::set<std::string> whitelist;
@@ -196,7 +225,26 @@ void RasterOITDynFragment::execute(RenderContext* pRenderContext, const RenderDa
         sortVars["PerFrame"]["gFrameDim"] = dim;
         sortVars["PerFrame"]["maxFragmentCount"] = mpDataBuffer->getElementCount();
 
-        mpSortPass->execute(pRenderContext, dim.x, dim.y);
+        if(mOptimizeSort)
+        {
+            for(auto& sortPass : mpOptimizedSortPasses)
+            {
+                /*auto svars = sortPass->getRootVar();
+                svars["gBuffer"] = mpDataBuffer;
+                svars["gPrefix"] = m_scanAuxBuffer.front();
+                svars["gColor"] = pColor;
+
+                svars["PerFrame"]["gFrameDim"] = dim;
+                svars["PerFrame"]["maxFragmentCount"] = mpDataBuffer->getElementCount();*/
+                sortPass->execute(pRenderContext, dim.x, dim.y);
+            }
+        }
+        else // single sort in global memory
+        {
+            mpSortPass->execute(pRenderContext, dim.x, dim.y);
+        }
+
+        
     }
     
 }
@@ -206,6 +254,8 @@ void RasterOITDynFragment::renderUI(Gui::Widgets& widget)
     widget.var("Buffer Node Count", mDataBufferSize, 1024u, 1024u * 1024u * 1024u);
     auto sizeInBytes = size_t(mDataBufferSize) * size_t(16);
     widget.text("Size in MB: " + std::to_string(sizeInBytes / (1024u * 1024u)));
+
+    widget.checkbox("Optimize Sort", mOptimizeSort);
 }
 
 void RasterOITDynFragment::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene)

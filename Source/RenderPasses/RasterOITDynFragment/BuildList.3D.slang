@@ -20,6 +20,7 @@ struct BufferData // 4 * 4 byte
 {
     uint2 color;
     float depth;
+    uint pad;
 };
 
 int packHalf(float a, float b)
@@ -94,7 +95,7 @@ void psMain(VSOut v, uint triangleIndex : SV_PrimitiveID, float3 barycentrics : 
     float4 shadedColor = shadeVBuffer(triangleHit, pixel, gFrameDim, viewDir);
     shadedColor.a = alpha;
 
-    BufferData data;
+    BufferData data = {};
     data.depth = v.posH.w;
     data.color = packHalf4(shadedColor);
 
