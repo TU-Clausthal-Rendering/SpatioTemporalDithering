@@ -2,14 +2,20 @@
 
 RWTexture2D<float4> gColor;
 
-struct Fragment // 4 * 4 byte 
+struct BufferFragment // 4 * 4 byte 
 {
     uint2 color;
     float depth;
-    uint pad;
+    uint pad; // padding
 };
 
-RWStructuredBuffer<Fragment> gBuffer;
+struct Fragment
+{
+    uint2 color;
+    float depth;
+};
+
+RWStructuredBuffer<BufferFragment> gBuffer;
 StructuredBuffer<uint> gPrefix; // start indices for each list
 
 float2 unpackHalf(uint c)
@@ -69,11 +75,16 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 	emptyFrag.color = 0;
 	[unroll] for(uint i = 0; i < MAX_FRAGMENT; ++i)
     {
-        [flatten] if (i < numFragments) f[i] = gBuffer[startIdx + i];
+        [flatten] if (i < numFragments)
+        {
+            let gf = gBuffer[startIdx + i];
+            f[i].depth = gf.depth;
+            f[i].color = gf.color;
+        }
 		else f[i] = emptyFrag;
 	}
 
-// #if MAX_FRAGMENT < 32
+#if MAX_FRAGMENT < 32
 
     // sort registers (insertion sort)
     [unroll] for (uint i = 1; i < MAX_FRAGMENT && IN_LIST(i); ++i)
@@ -86,7 +97,7 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 			f[j - 1] = tmp;
 		}
 	}
-/*#else
+#else
 	// sort registers (shell sort)
 	const uint gaps[] = {111, 41, 13, 4, 1};
 	const uint maxGaps = 5;
@@ -99,9 +110,9 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 	[unroll] for(uint gapIdx = startGap; gapIdx < maxGaps; ++gapIdx) 
 	{
 		const int gap = gaps[gapIdx];
-		[unroll] for(i = gap; i < MAX_FRAGMENT && IN_LIST(i); ++i) 
+		for(uint i = gap; i < MAX_FRAGMENT && IN_LIST(i); ++i) 
 		{
-			[unroll] for(uint j = i; j >= gap && f[j - gap].depth > f[j].depth; j -= gap)
+			for(uint j = i; j >= gap && f[j - gap].depth > f[j].depth; j -= gap)
 			{
 				Fragment tmp = f[j];
 				f[j] = f[j - gap];
@@ -111,7 +122,7 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 	}
 
 
-#endif*/
+#endif
 
 
 	float4 color = float4(0.0, 0.0, 0.0, 1.0);
@@ -128,7 +139,7 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 	// sort fragments between start and end
     for (uint i = startIdx + 1; i < endIdx; ++i)
     {
-        Fragment curFrag = gBuffer[i];
+        let curFrag = gBuffer[i];
         uint j = i;
         for (; j > startIdx && gBuffer[j - 1].depth < curFrag.depth; --j)
         {
