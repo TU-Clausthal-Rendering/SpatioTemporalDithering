@@ -229,13 +229,6 @@ void RasterOITDynFragment::execute(RenderContext* pRenderContext, const RenderDa
         {
             for(auto& sortPass : mpOptimizedSortPasses)
             {
-                /*auto svars = sortPass->getRootVar();
-                svars["gBuffer"] = mpDataBuffer;
-                svars["gPrefix"] = m_scanAuxBuffer.front();
-                svars["gColor"] = pColor;
-
-                svars["PerFrame"]["gFrameDim"] = dim;
-                svars["PerFrame"]["maxFragmentCount"] = mpDataBuffer->getElementCount();*/
                 sortPass->execute(pRenderContext, dim.x, dim.y);
             }
         }

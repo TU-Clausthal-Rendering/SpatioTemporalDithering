@@ -35,6 +35,7 @@ namespace
     const std::string kColor = "color";
 
     const std::string kHead = "head";
+    const std::string kPixelCount = "pixelCount";
 
     const std::string kWhitelist = "whitelist";
 
@@ -65,6 +66,19 @@ RasterOITLinkedList::RasterOITLinkedList(ref<Device> pDevice, const Properties& 
     desc.addShaderLibrary(kSortFile).csEntry("main").setShaderModel("6_5");
 
     mpSortPass = ComputePass::create(mpDevice, desc);
+
+    // optimized sort passes
+    // maximum fragment count for the resolve stage. Upper limit is 256
+    static constexpr auto resolveIntervals = std::array{ 256, 128, 64, 32, 16, 8, 4, 0 /*only for MIN_FRAGMENT*/ };
+
+    for(size_t i = 0; i < resolveIntervals.size() - 1; ++i)
+    {
+        DefineList d;
+        d["MAX_FRAGMENT"] = std::to_string(resolveIntervals[i]);
+        d["MIN_FRAGMENT"] = std::to_string(resolveIntervals[i + 1]);
+        mpOptimizedSortPasses.push_back(ComputePass::create(mpDevice, desc, d));
+        mpOptimizedSortPasses.back()->setVars(mpSortPass->getVars());
+    }
 }
 
 Properties RasterOITLinkedList::getProperties() const
@@ -78,6 +92,7 @@ RenderPassReflection RasterOITLinkedList::reflect(const CompileData& compileData
     reflector.addInput(kDepth, "Depth buffer");
 
     reflector.addInternal(kHead, "head pointer").format(ResourceFormat::R32Uint).bindFlags(ResourceBindFlags::UnorderedAccess);
+    reflector.addInternal(kPixelCount, "pixel counter").format(ResourceFormat::R32Uint).bindFlags(ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource);
 
     reflector.addOutput(kColor, "Color buffer").format(ResourceFormat::RGBA16Float).bindFlags(ResourceBindFlags::AllColorViews);
     return reflector;
@@ -88,15 +103,18 @@ void RasterOITLinkedList::execute(RenderContext* pRenderContext, const RenderDat
     auto pDepth = renderData.getTexture(kDepth);
     auto pColor = renderData.getTexture(kColor);
     auto pHead = renderData.getTexture(kHead);
+    auto pPixelCount = renderData.getTexture(kPixelCount);
 
     // clear resources
     uint32_t uintmax = uint32_t(-1);
     pRenderContext->clearTexture(pColor.get(), float4(0, 0, 0, 1));
     pRenderContext->clearUAV(pHead->getUAV().get(), uint4(uintmax));
     pRenderContext->clearUAV(mpCountBuffer->getUAV(0, 1).get(), uint4(0));
+    pRenderContext->clearUAV(pPixelCount->getUAV().get(), uint4(0));
 
     pRenderContext->uavBarrier(mpCountBuffer.get());
     pRenderContext->uavBarrier(pHead.get());
+    pRenderContext->uavBarrier(pPixelCount.get());
 
     if (!mpScene)
     {
@@ -118,6 +136,7 @@ void RasterOITLinkedList::execute(RenderContext* pRenderContext, const RenderDat
         vars["gHead"] = pHead;
         vars["gBuffer"] = mpDataBuffer;
         vars["gCount"] = mpCountBuffer;
+        vars["gPixelCount"] = pPixelCount;
 
         vars["PerFrame"]["gFrameDim"] = uint2(pDepth->getWidth(), pDepth->getHeight());
         vars["PerFrame"]["maxElements"] = mpDataBuffer->getElementCount();
@@ -126,6 +145,7 @@ void RasterOITLinkedList::execute(RenderContext* pRenderContext, const RenderDat
         LightSettings::get().updateShaderVar(vars);
         ShadowSettings::get().updateShaderVar(mpDevice, vars);
         mpProgram->addDefines(ShadowSettings::get().getShaderDefines(*mpScene, renderData.getDefaultTextureDims()));
+        mpProgram->addDefine("OPTIMIZE_SORT", std::to_string(mOptimizeSort ? 1 : 0));
 
         // framebuffer
         mpFbo->attachDepthStencilTarget(pDepth);
@@ -168,11 +188,22 @@ void RasterOITLinkedList::execute(RenderContext* pRenderContext, const RenderDat
         vars["gHead"] = pHead;
         vars["gBuffer"] = mpDataBuffer;
         vars["gColor"] = pColor;
+        vars["gPixelCount"] = pPixelCount;
 
         vars["PerFrame"]["gFrameDim"] = uint2(pDepth->getWidth(), pDepth->getHeight());
         vars["PerFrame"]["maxElements"] = mpDataBuffer->getElementCount();
 
-        mpSortPass->execute(pRenderContext, pDepth->getWidth(), pDepth->getHeight());
+        if(mOptimizeSort)
+        {
+            for (auto& sortPass : mpOptimizedSortPasses)
+            {
+                sortPass->execute(pRenderContext, pDepth->getWidth(), pDepth->getHeight());
+            }
+        }
+        else
+        {
+            mpSortPass->execute(pRenderContext, pDepth->getWidth(), pDepth->getHeight());
+        }
     }
 }
 
@@ -181,6 +212,8 @@ void RasterOITLinkedList::renderUI(Gui::Widgets& widget)
     widget.var("Linked List Node Count", mDataBufferSize, 1024u, 1024u * 1024u * 1024u);
     auto sizeInBytes = size_t(mDataBufferSize) * size_t(16);
     widget.text("Size in MB: " + std::to_string(sizeInBytes / (1024u * 1024u)));
+
+    widget.checkbox("Optimize Sort", mOptimizeSort);
 }
 
 void RasterOITLinkedList::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene)

@@ -2,6 +2,7 @@
 
 RWTexture2D<float4> gColor;
 Texture2D<uint> gHead;
+Texture2D<uint> gPixelCount;
 
 struct BufferData // 4 * 4 byte 
 {
@@ -37,8 +38,8 @@ cbuffer PerFrame
     uint maxElements;
 }
 
-#ifndef MAX_ELEMENT
-#define MAX_ELEMENT 64
+#ifndef MAX_FRAGMENT
+#define MAX_FRAGMENT 64
 #endif
 
 [numthreads(8, 8, 1)]
@@ -48,49 +49,90 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
     if (pixel.x >= gFrameDim.x || pixel.y >= gFrameDim.y)
         return;
 
+    #ifdef MIN_FRAGMENT
+    uint pixCount = gPixelCount[pixel];
+    if (pixCount > MAX_FRAGMENT) return;
+    if (pixCount <= MIN_FRAGMENT)
+    {
+        if (MIN_FRAGMENT == 0) gColor[pixel] = float4(0, 0, 0, 1);
+        return; // this is handled by a different shader
+    }
+    #endif
+
     uint head = gHead[pixel];
     if (head >= maxElements)
         return;
 
-    float4 color = float4(0, 0, 0, 1);
-
-    FragData a[MAX_ELEMENT];
+    // load fragments into registers
+    FragData f[MAX_FRAGMENT];
     // clear (optional?)
     uint i;
-    [unroll] for (i = 0; i < MAX_ELEMENT; ++i)
+    [unroll] for (i = 0; i < MAX_FRAGMENT; ++i)
     {
-        a[i].color = 0u;
-        a[i].depth = FLT_MAX;
+        f[i].color = 0u;
+        f[i].depth = FLT_MAX;
     }
 
     // insert from linked list
     uint next = head;
     uint count = 0;
-    [unroll] for (i = 0; i < MAX_ELEMENT && next < maxElements; ++i)
+    [unroll] for (i = 0; i < MAX_FRAGMENT && next < maxElements; ++i)
     {
         BufferData data = gBuffer[next];
         next = data.next;
-        a[i].depth = data.depth;
-        a[i].color = data.color;
+        f[i].depth = data.depth;
+        f[i].color = data.color;
         count++;
     }
 
-    // sort
-    for (i = 1; i < MAX_ELEMENT && i < count; ++i)
+#define IN_LIST(i) i < count
+#if MAX_FRAGMENT < 32
+
+    // sort registers (insertion sort)
+    [unroll] for (uint i = 1; i < MAX_FRAGMENT && IN_LIST(i); ++i)
     {
-        for (int j = i; j > 0 && a[j - 1].depth > a[j].depth; --j) {
-            let tmp = a[j];
-            a[j] = a[j - 1];
-            a[j - 1] = tmp;
+        // i - 1 elements are sorted
+        [unroll] for (uint j = i; j > 0 && f[j - 1].depth > f[j].depth; --j)
+        {
+            let tmp = f[j];
+            f[j] = f[j - 1];
+            f[j - 1] = tmp;
+        }
+    }
+#else
+    // sort registers (shell sort)
+    const uint gaps[] = { 111, 41, 13, 4, 1 };
+    const uint maxGaps = 5;
+#if MAX_FRAGMENT <= 111
+    const uint startGap = 1;
+#else
+    const uint startGap = 0;
+#endif
+
+    [unroll] for (uint gapIdx = startGap; gapIdx < maxGaps; ++gapIdx)
+    {
+        const int gap = gaps[gapIdx];
+        for (uint i = gap; i < MAX_FRAGMENT && IN_LIST(i); ++i)
+        {
+            for (uint j = i; j >= gap && f[j - gap].depth > f[j].depth; j -= gap)
+            {
+                let tmp = f[j];
+                f[j] = f[j - gap];
+                f[j - gap] = tmp;
+            }
         }
     }
 
-    // blend
-    [unroll] for (i = 0; i < MAX_ELEMENT && i < count; ++i)
+#endif
+
+    float4 color = float4(0.0, 0.0, 0.0, 1.0);
+
+    // now blend together (front to back)
+    [unroll] for (uint i = 0; i < MAX_FRAGMENT && IN_LIST(i); ++i)
     {
-        float4 fcolor = unpackHalf4(a[i].color);
-        color.rgb += color.a * fcolor.a * fcolor.rgb;
-        color.a *= (1.0 - fcolor.a);
+        float4 c = unpackHalf4(f[i].color);
+        color.rgb += color.a * c.a * c.rgb;
+        color.a *= (1.0 - c.a);
     }
 
     gColor[pixel] = color;

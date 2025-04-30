@@ -66,7 +66,7 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
 //#undef MAX_FRAGMENT
 #ifdef MAX_FRAGMENT
     if (numFragments > MAX_FRAGMENT) return; // this is handled by a different shader
-#define IN_LIST(i) true
+#define IN_LIST(i) i < numFragments
 
 	// load fragments into registers
 	Fragment f[MAX_FRAGMENT];

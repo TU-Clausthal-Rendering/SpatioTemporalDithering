@@ -14,6 +14,7 @@ import Utils.Math.FormatConversion;
 #endif
 
 RWTexture2D<uint> gHead;
+RWTexture2D<uint> gPixelCount; // count list lengths
 
 struct BufferData // 4 * 4 byte 
 {
@@ -94,4 +95,8 @@ void psMain(VSOut v, uint triangleIndex : SV_PrimitiveID, float3 barycentrics : 
 
     // store buffer data
     gBuffer[idx] = data;
+
+#if OPTIMIZE_SORT
+    InterlockedAdd(gPixelCount[pixel], 1);
+#endif
 }

@@ -66,4 +66,7 @@ private:
 
     uint mDataBufferSize = 1024 * 1024 * 40;
     ref<FrustumCulling> mpCulling;
+
+    bool mOptimizeSort = true;
+    std::vector<ref<ComputePass>> mpOptimizedSortPasses;
 };
