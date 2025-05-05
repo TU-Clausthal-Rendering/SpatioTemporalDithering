@@ -71,4 +71,6 @@ private:
 
     bool mCullBackFaces = true;
     ref<FrustumCulling> mpCulling;
+
+    bool mCameraJitter = true;
 };

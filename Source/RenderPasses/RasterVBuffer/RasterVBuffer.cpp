@@ -106,7 +106,10 @@ void RasterVBuffer::execute(RenderContext* pRenderContext, const RenderData& ren
     assert(mpVars);
 
     uint2 frameDim = uint2(pVbuffer->getWidth(), pVbuffer->getHeight());
-    mpScene->getCamera()->setPatternGenerator(mpSamplePattern, 1.0f / float2(frameDim));
+    if(mCameraJitter)
+        mpScene->getCamera()->setPatternGenerator(mpSamplePattern, 1.0f / float2(frameDim));
+    else
+        mpScene->getCamera()->setPatternGenerator(nullptr, 1.0f / float2(frameDim));
 
     mpProgram->addDefine("ALPHA_TEXTURE_LOD", mUseAlphaTextureLOD ? "1" : "0");
 
@@ -168,6 +171,8 @@ void RasterVBuffer::renderUI(Gui::Widgets& widget)
     if (auto g = widget.group("Scene"))
     {
         //widget.checkbox("Frustrum Culling", mFrustrumCulling);
+
+        widget.checkbox("Camera Jitter", mCameraJitter);
 
         widget.checkbox("Alpha Texture LOD", mUseAlphaTextureLOD);
 
