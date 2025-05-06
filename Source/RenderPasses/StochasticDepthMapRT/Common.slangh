@@ -20,6 +20,10 @@ StructuredBuffer<uint> materialAlphaTestLookup;
 #define IMPLEMENTATION_RESERVOIR_SAMPLING 2
 #define IMPLEMENTATION_KBUFFER 3
 
+#ifndef CULL_MODE_RAY_FLAG
+#define CULL_MODE_RAY_FLAG 0
+#endif
+
 #ifndef sd_t
 #define sd_t float2
 #endif

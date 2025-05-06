@@ -5,6 +5,10 @@ import Scene.Raytracing;
 Texture2D<uint> aoMask;
 RWTexture2D<ao_t> output;
 
+#ifndef CULL_MODE_RAY_FLAG
+#define CULL_MODE_RAY_FLAG 0
+#endif
+
 [shader("anyhit")]
 void anyHit(inout RayData rayData, BuiltInTriangleIntersectionAttributes attribs)
 {

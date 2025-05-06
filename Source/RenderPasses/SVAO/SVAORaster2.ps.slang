@@ -5,6 +5,10 @@ import Scene.RaytracingInline;
 Texture2D<uint> aoMask;
 RWTexture2D<unorm ao_t> aoPrev;
 
+#ifndef CULL_MODE_RAY_FLAG
+#define CULL_MODE_RAY_FLAG 0
+#endif
+
 // implementation of the traceAORay used inside calcAO2
 void traceAORay(RayDesc ray, inout RayData rayData)
 {

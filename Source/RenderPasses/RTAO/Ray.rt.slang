@@ -64,9 +64,9 @@ void rayGen()
     
     // non-linear depth
     float4 wPos = gWPosTex[svPos];
-    if (wPos.w <= 0.0) //0 in w is miss
+    if (wPos.w <= 0.0)
     {
-        ambientOut[svPos] = 0;
+        ambientOut[svPos] = 1;
         return;
     }
 
@@ -83,7 +83,7 @@ void rayGen()
     float3 tangent = cross(bitangent, faceNormal);
 
     // Init sample generator
-    SampleGenerator sg = SampleGenerator(svPos, frameIndex % 30u);
+    SampleGenerator sg = SampleGenerator(svPos, frameIndex);// % 30u);
 
     RayDesc ray;
     ray.Origin = wPos.xyz;
