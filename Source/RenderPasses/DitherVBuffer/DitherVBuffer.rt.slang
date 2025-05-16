@@ -51,7 +51,8 @@ StructuredBuffer<uint> gTransparencyWhitelist;
 
 RWTexture2D<PackedHitInfo> gVBuffer;
 RWTexture2D<float2> gMotion;
-RWTexture2D<float> gOpacity; // mask for TAA
+RWTexture2D<float> gOpacity; // mask for TAA (0 = no transparency)
+#define OPAQUE_MASK 0.9
 RWTexture2D<float4> gColor; // shaded vbuffer
 
 struct RayData
@@ -130,8 +131,8 @@ void miss(inout RayData rayData : SV_RayPayload)
     float3 prevEnvMapDir = mul(gScene.camera.data.prevViewMat, float4(rayDirNoJitter, 0.0)).xyz;
     float2 prevUV = ViewSpaceToUV(prevEnvMapDir);
     gVBuffer[pixel] = hitInfo.getData();
-    gMotion[pixel] = getAlignedMotionVector(prevUV - (float2(pixel)+0.5) / float2(frameDim), rayData.minAlphaT <= RayTCurrent());
-    gOpacity[pixel] = rayData.minAlphaT < RayTCurrent() ? 1.0 : 0.0;
+    gMotion[pixel] = getAlignedMotionVector(prevUV - (float2(pixel) + 0.5) / float2(frameDim), rayData.minAlphaT <= RayTCurrent());
+    gOpacity[pixel] = rayData.minAlphaT < RayTCurrent() ? OPAQUE_MASK : 0.0;
 
 #ifdef FULL_STOCHASTIC
     gColor[pixel] = shadeEnvmap(-WorldRayDirection());
@@ -341,7 +342,7 @@ void closestHit(inout RayData rayData : SV_RayPayload, BuiltInTriangleIntersecti
 #endif
         gVBuffer[pixel] = HitInfo(triangleHit).getData();
         gMotion[pixel] = calcMotionVector(pixel, frameDim, triangleHit, rayData.minAlphaT <= RayTCurrent());
-        gOpacity[pixel] = rayData.minAlphaT <= RayTCurrent() ? 1.0 : 0.0;
+        gOpacity[pixel] = rayData.minAlphaT <= RayTCurrent() ? OPAQUE_MASK : 0.0;
     }
     
 }

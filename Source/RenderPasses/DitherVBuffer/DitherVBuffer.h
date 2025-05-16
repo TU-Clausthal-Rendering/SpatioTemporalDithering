@@ -37,7 +37,7 @@ using namespace Falcor;
 
 // use this define to enable the use of hash grids for surface attached noise and techniques
 // the use of hash grids requires calculation of ray differentials in the any-hit, which are a measurable performance hit
-//#define ENABLE_HASH_GRIDS
+#define ENABLE_HASH_GRIDS
 
 class DitherVBuffer : public RenderPass
 {

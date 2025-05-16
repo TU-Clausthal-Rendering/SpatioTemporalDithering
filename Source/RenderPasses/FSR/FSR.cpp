@@ -44,7 +44,7 @@ namespace
     const std::string kDepth = "depth";
     const std::string kMotion = "mvec";
     // const std::string kExposure = "exposure"; // Optional resource containing a 1x1 exposure value.
-    // const std::string kReactive = "reactive"; // Optional resource containing alpha value of reactive objects in the scene.
+    const std::string kReactive = "reactive"; // Optional resource containing alpha value of reactive objects in the scene.
     const std::string kOutput = "output";
 }
 
@@ -73,6 +73,7 @@ RenderPassReflection FSR::reflect(const CompileData& compileData)
     reflector.addInput(kColorIn, "Color buffer for the current frame (at render resolution)");
     reflector.addInput(kDepth, "32bit depth values for the current frame (at render resolution)");
     reflector.addInput(kMotion, "2-dimensional motion vectors");
+    reflector.addInput(kReactive, "Reactive Mask: For transparency, should be ~alpha. For best results, use values between 0.0 (no transparency) and 0.9 (transparent)").flags(RenderPassReflection::Field::Flags::Optional);
 
     reflector.addOutput(kOutput, "Output texture").format(ResourceFormat::RGBA32Float).bindFlags(Resource::BindFlags::AllColorViews);
     return reflector;
@@ -137,6 +138,7 @@ void FSR::execute(RenderContext* pRenderContext, const RenderData& renderData)
     auto pColorIn = renderData.getTexture(kColorIn);
     auto pDepth = renderData.getTexture(kDepth);
     auto pMotion = renderData.getTexture(kMotion);
+    auto pReactive = renderData.getTexture(kReactive);
     auto pOut = renderData.getTexture(kOutput);
 
     if (!mpScene || !mEnabled)
@@ -144,6 +146,9 @@ void FSR::execute(RenderContext* pRenderContext, const RenderData& renderData)
         pRenderContext->blit(pColorIn->getSRV(), pOut->getRTV());
         return;
     }
+
+    if(!pReactive) mUseReactive = false;
+    if(!mUseReactive) pReactive = nullptr;
 
     auto pCamera = mpScene->getCamera();
 
@@ -155,7 +160,7 @@ void FSR::execute(RenderContext* pRenderContext, const RenderData& renderData)
     dispatchUpscale.motionVectors = ffxGetResourceApi(pRenderContext, pMotion.get());
     dispatchUpscale.exposure = ffxGetResourceApi(pRenderContext, nullptr);
     dispatchUpscale.output = ffxGetResourceApi(pRenderContext, pOut.get());
-    dispatchUpscale.reactive = ffxGetResourceApi(pRenderContext, nullptr);;
+    dispatchUpscale.reactive = ffxGetResourceApi(pRenderContext, pReactive.get());;
     dispatchUpscale.transparencyAndComposition = ffxGetResourceApi(pRenderContext, nullptr);
     float2 jitterOffset = float2(pCamera->getJitterX(), -pCamera->getJitterY()) * float2(pColorIn->getWidth(), pColorIn->getHeight());
     dispatchUpscale.jitterOffset.x = jitterOffset.x;
@@ -194,6 +199,8 @@ void FSR::renderUI(Gui::Widgets& widget)
     if (!mEnabled) return;
 
     widget.slider("Sharpness", mSharpness, 0.0f, 1.0f);
+
+    widget.checkbox("Use Reactive Mask", mUseReactive);
 
     if(widget.button("Reset"))
     {
