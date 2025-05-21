@@ -43,7 +43,8 @@ namespace
         {"linearZ", "gLinearZ", "Linear z values from camera space (positive)", true, ResourceFormat::R32Float},
         {"roughness", "gRoughness", "0-1 material roughness", true, ResourceFormat::R8Unorm},
         {"diffuse", "gDiffuse", "diffuse material property", true, ResourceFormat::RGBA8Unorm},
-        {"specular", "gSpecular", "specular material property", true, ResourceFormat::RGBA8Unorm}
+        {"specular", "gSpecular", "specular material property", true, ResourceFormat::RGBA8Unorm},
+        {"normalWRoughnessMaterialID", "gNormalWRoughnessMaterialID", "Guide normal in world space, roughness, and material ID", true, ResourceFormat::RGB10A2Unorm}
     };
 
     const std::string kProgramComputeFile = "RenderPasses/UnpackVBuffer/Unpack.cs.slang";

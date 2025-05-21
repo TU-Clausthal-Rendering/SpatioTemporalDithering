@@ -1,4 +1,5 @@
 import Scene.Raster;
+import Utils.Math.MathHelpers;
 
 Texture2D<PackedHitInfo> gVBuffer;
 RWTexture2D<float4> gPosW;
@@ -10,6 +11,7 @@ RWTexture2D<float> gLinearZ;
 RWTexture2D<float> gRoughness;
 RWTexture2D<float4> gDiffuse;
 RWTexture2D<float4> gSpecular;
+RWTexture2D<float4> gNormalWRoughnessMaterialID;
 
 float3 EnvBRDFApprox2(float3 SpecularColor, float alpha, float NoV) 
 { 
@@ -65,6 +67,11 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
         gDiffuse[pixel] = float4(bsdf.diffuseReflectionAlbedo + bsdf.emission, 1.0);
         //gSpecular[pixel] = float4(bsdf.specularReflectionAlbedo, 1.0);
         gSpecular[pixel] = float4(EnvBRDFApprox2(bsdf.specularReflectionAlbedo, bsdf.roughness * bsdf.roughness, abs(dot(v.normalW, viewDir))), 1.0);
+
+        float3 normal = bsdf.guideNormal;
+        float2 octNormal = ndir_to_oct_unorm(normal);
+        float roughness = bsdf.roughness;
+        gNormalWRoughnessMaterialID[pixel] = float4(octNormal, roughness, 0.0);
     }
     else // invalid hit => default values
     {
@@ -78,5 +85,8 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint3 localI
         gRoughness[pixel] = 0.0;
         gDiffuse[pixel] = 0.0;
         gSpecular[pixel] = 0.0;
+
+        const float2 octNormal = ndir_to_oct_unorm(float3(0.2215, 0.2215, 0.2215)); // UE4 default value at miss
+        gNormalWRoughnessMaterialID[pixel] = float4(octNormal, 0.0, 0.0);
     }
 }
