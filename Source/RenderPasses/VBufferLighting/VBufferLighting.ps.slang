@@ -5,6 +5,7 @@ Texture2DArray<float> visibilityBuffer;
 Texture2D<PackedHitInfo> vbuffer;
 Texture2D<float4> rayDir;
 Texture2D<float4> transparency;
+Texture2D<float> ambient; // ambient occlusion
 
 #ifndef USE_RAY_SHADOW
 #define USE_RAY_SHADOW 0
@@ -97,6 +98,9 @@ PSOut main(float2 texC : TEXCOORD, float4 svPos : SV_POSITION)
     if(color.a > 0.001)
     {
         float4 c = shadeVBuffer(hit, pixel, frameDim, viewDir);
+#if USE_AMBIENT == 1
+        c.rgb *= ambient[pixel];
+#endif
         color.rgb += color.a * c.rgb;
     }
     color.a = 1.0;
