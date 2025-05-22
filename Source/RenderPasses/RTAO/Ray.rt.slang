@@ -74,7 +74,8 @@ float hash4D(float4 v)
 bool winOpaqueRoulette(float alpha, float3 posW)
 {
     alpha = pow(alpha, 0.25); // strenthen hit chance to produce darker AO
-    float rng = hash4D(float4(posW, 0 * frameIndex));
+    // float rng = hash4D(float4(posW, 0 * frameIndex));
+    float rng = hash3D(posW);
     if (rng > alpha) return false;
     return true;
 }

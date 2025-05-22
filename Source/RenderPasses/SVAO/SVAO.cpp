@@ -61,6 +61,9 @@ namespace
     const std::string kStochMapDivisor = "stochMapDivisor"; // stochastic depth map resolution divisor
     const std::string kDualAo = "dualAO";
     const std::string kAlphaTest = "alphaTest";
+
+    const std::string kWhitelist = "whitelist";
+    const std::string kWhitelistBuffer = "whitelistBuffer"; // GPU Buffer for whitelist
 }
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
@@ -430,6 +433,10 @@ void SVAO::execute(RenderContext* pRenderContext, const RenderData& renderData)
         // force clear if we want to cache (otherwise old results will be inside since the texture is never cleared)
         mpStochasticDepthGraph->getPassesDictionary()["SD_CLEAR"] = mCacheSDMap;
         mpStochasticDepthGraph->getPassesDictionary()["MAX_DEPTH"] = maxDepth;
+        if (renderData.getDictionary().keyExists(kWhitelist))
+            mpStochasticDepthGraph->getPassesDictionary()[kWhitelist] = renderData.getDictionary()[kWhitelist];
+        if(renderData.getDictionary().keyExists(kWhitelistBuffer))
+            mpStochasticDepthGraph->getPassesDictionary()[kWhitelistBuffer] = renderData.getDictionary()[kWhitelistBuffer];
 
         mpStochasticDepthGraph->execute(pRenderContext);
         pStochasticDepthMap = mpStochasticDepthGraph->getOutput("StochasticDepthMap.stochasticDepth")->asTexture();

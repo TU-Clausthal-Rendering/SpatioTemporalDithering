@@ -55,6 +55,9 @@ namespace
     const std::string kGuardBand = "GuardBand";
     const std::string kMaxCount = "MaxCount";
 
+    const std::string kWhitelist = "whitelist";
+    const std::string kWhitelistBuffer = "whitelistBuffer"; // GPU Buffer for whitelist
+
     const Gui::DropdownList kCullModeList =
     {
         { (uint32_t)RasterizerState::CullMode::None, "None" },
@@ -327,6 +330,11 @@ void StochasticDepthMapRT::execute(RenderContext* pRenderContext, const RenderDa
     mRayVars->getRootVar()["rayMinTex"] = pRayMin;
     mRayVars->getRootVar()["rayMaxTex"] = pRayMax;
     mRayVars->getRootVar()["materialAlphaTestLookup"] = mpMaterialAlphaTest;
+
+    // transparency whitelist
+    bool useWhitelist = renderData.getDictionary().keyExists(kWhitelistBuffer);
+    mpRayProgram->addDefine("TRANSPARENCY_WHITELIST", useWhitelist ? "1" : "0");
+    mRayVars->getRootVar()["gTransparencyWhitelist"] = renderData.getDictionary().getValue<ref<Buffer>>(kWhitelistBuffer, nullptr);
 
     mpScene->raytrace(pRenderContext, mpRayProgram.get(), mRayVars, uint3(psDepths->getWidth(), psDepths->getHeight(), 1));
 

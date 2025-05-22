@@ -13,6 +13,26 @@ StructuredBuffer<uint> stratifiedLookUpTable;
 
 StructuredBuffer<uint> materialAlphaTestLookup;
 
+StructuredBuffer<uint> gTransparencyWhitelist;
+
+#ifndef TRANSPARENCY_WHITELIST
+#define TRANSPARENCY_WHITELIST 0
+#endif
+
+bool isAlphaTested(uint materialID)
+{
+#if TRANSPARENCY_WHITELIST == 0
+    return true;
+#else
+    uint isTransparent = (gTransparencyWhitelist[materialID / 32u] & (1u << (materialID % 32u)));
+    return isTransparent == 0u;
+#endif
+}
+
+#ifndef USE_ALPHA_TEST
+#define USE_ALPHA_TEST 1
+#endif
+
 #define DEFAULT_DEPTH (NORMALIZE ? 1.0 : 3.40282347E+37F)
 
 #define IMPLEMENTATION_DEFAULT 0
@@ -51,7 +71,18 @@ float hash3D(float3 v)
 // 4D hash function based on the 3D hash function
 float hash4D(float4 v)
 {
-    return hash(float2(hash3D(v.xyz), v.w));
+    // return hash(float2(hash3D(v.xyz), v.w));
+    return hash(float2(hash(v.xy), hash(v.zw)));
+}
+
+// true => opaque hit, false => miss
+bool winOpaqueRoulette(float alpha, float3 posW)
+{
+    //alpha = pow(alpha, 0.25); // strenthen hit chance to produce darker AO
+    float rng = hash3D(posW);
+    if (rng > alpha)
+        return false;
+    return true;
 }
 
 float RayToViewDepth(float3 rayDir, float rayT)
@@ -175,8 +206,27 @@ inout uint count, float2 barycentrics, float t, GeometryInstanceID instanceID, u
             hit.barycentrics = barycentrics;
             
             const VertexData v = gScene.getVertexData(hit);
-            if (gScene.materials.alphaTest(v, materialID, computeLod(v, rayDir)))  
-                return count >= MAX_COUNT; // alpha test failed => ignore this triangle
+            let lod = computeLod(v, rayDir);
+            
+            // transparency whitelist check
+            if(isAlphaTested(materialID))
+            {
+                if (gScene.materials.alphaTest(v, materialID, lod))  
+                    return count >= MAX_COUNT; // alpha test failed => ignore this triangle    
+            }
+            else
+            {
+                // treat at partial transparent
+                let material = gScene.materials.getMaterial(materialID);
+                float alpha = material.evalOpacity(gScene.materials, v, lod);
+                if (alpha <= 0.01)
+                    return count >= MAX_COUNT; // rejected because fully transparent
+
+                if(!winOpaqueRoulette(alpha, v.posW))
+                    return count >= MAX_COUNT; // rejected due to russian roulette fail (treat as transparent)
+
+                // accepted: treat as opaque
+            }
         }
     }
     #endif
