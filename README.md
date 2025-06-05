@@ -17,7 +17,7 @@ Teaser:
 
 This project was implemented in NVIDIAs Falcor rendering framework.
 
-You can download the executable demo from the [Releases Page](https://github.com/kopaka1822/Falcor/releases/tag/Ray-SD), or build the project by following the instructions in [Building Falcor](#building-falcor).
+You can download the executable demo from the [Releases Page](https://github.com/kopaka1822/Falcor/releases/tag/SpatioTemporalDither), or build the project by following the instructions in [Building Falcor](#building-falcor).
 
 After downloading the demo from the releases page, you can execute it with the RunFalcor.bat file. In the Demo, you can configure the renderer after expanding the **DitherVBuffer** tab. In the **DitherVBuffer** tab you can select the specific transparency technique in the **Dither** dropdown:
 * Disabled: Everything will be interpreted as opaque
