@@ -4,7 +4,7 @@
 
 Teaser:
 
-[![YouTube](http://i.ytimg.com/vi/3bnV-c5PvMo/hqdefault.jpg)](https://www.youtube.com/watch?v=3bnV-c5PvMo)
+[![YouTube](http://i.ytimg.com/vi/07vLuLH_1wU/hqdefault.jpg)](https://www.youtube.com/watch?v=07vLuLH_1wU)
 
 ## Contents:
 
@@ -26,12 +26,19 @@ After downloading the demo from the releases page, you can execute it with the R
 * HashGrid: (not in the paper) This renderer tries to pin the noise to the surface of the objects, instead of pinning it to screen space. This works somewhat well for white and blue noise, but produces extreme moiree patterns for regular patterns like bayer dithering matrices.
 * FractalDithering: (not in the paper) This technique also tries to pin a texture to the surface of the objects, but uses a recurring fractal dithering pattern to do so. Unfortunately, scaling this dithering pattern to subpixel also produces extreme moiree patterns. The technique itself comes from this [Youtube](https://www.youtube.com/watch?v=HPqGaIMVuLs&pp=ygURZnJhY3RhbCBkaXRoZXJpbmc%3D) video.
 * STD 2x2: STD, but with 2x2 dither matrices (using all 24 permutations of 2x2 matrices)
-* Periodic: Tries to utilize the uniform sequence modulo one, to select the optimal temporal sequence. Unfortunately, this flickers a lot.
+* Periodic: Tries to utilize the uniform distribution modulo one, to select the optimal temporal sequence. Unfortunately, this flickers a lot.
+* SpatioTemporalBlueNoise: Implementation based on Wolfe et al. \[WMAR22\] (Screen-Space noise)
+* SurfaceSpatioTemporalBlueNoise: Same as above, but the texture is being attached to the surfaces as in the HashGrid technique above.
+* BlueNoise3D: Screen-space blue noise, where the third axis is represented by time.
 
-To change settings of our algorithms, navigate to the SVAO group below and expand it.
+=> For the baseline, set the Hybrid Threshold slider to 0.0
+
+In the correction dropdown you can enable or disable the DLSS correction.
 
 You can navigate the camera with WASD and dragging the mouse for rotation.
-
+Hold shift for more camera speed
+QE for camera up and down
+Space to pause the animation
 
 ## Falcor Prerequisites
 - Windows 10 version 20H2 (October 2020 Update) or newer, OS build revision .789 or newer
