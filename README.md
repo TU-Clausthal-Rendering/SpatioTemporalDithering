@@ -2,6 +2,8 @@
 
 # Spatio-Temporal Dithering for Order-Independent Transparency on Ray Tracing Hardware
 
+Paper: https://diglib.eg.org/items/a66e25db-7545-4612-bba8-3df6083209e8
+
 Teaser:
 
 [![YouTube](http://i.ytimg.com/vi/07vLuLH_1wU/hqdefault.jpg)](https://www.youtube.com/watch?v=07vLuLH_1wU)
